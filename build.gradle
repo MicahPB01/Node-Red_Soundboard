@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
 group 'com.example'
@@ -11,10 +12,15 @@ repositories {
     mavenCentral()
 }
 
+
+
 dependencies {
     implementation 'javax.websocket:javax.websocket-api:1.1'
     implementation 'org.glassfish.tyrus:tyrus-container-grizzly-client:1.17'
     implementation 'org.glassfish.tyrus:tyrus-container-grizzly-server:1.17'
+    implementation 'com.googlecode.soundlibs:vorbisspi:1.0.3.3'
 }
+
+
 
 mainClassName = 'org.example.Soundboard'
