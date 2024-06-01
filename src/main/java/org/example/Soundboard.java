@@ -1,14 +1,14 @@
 package org.example;
 
-import javazoom.spi.vorbis.sampled.file.VorbisAudioFileReader;
-import org.tritonus.share.sampled.file.TAudioFileFormat;
-
 import javax.sound.sampled.*;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import org.glassfish.tyrus.server.Server;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,14 +17,23 @@ import java.util.concurrent.TimeUnit;
 
 @ServerEndpoint("/soundboard")
 public class Soundboard {
-    private static SourceDataLine goalLine;
-    private static SourceDataLine songLine;
-    private static SourceDataLine continuousLine;
+    private static Clip goalClip;
+    private static Clip songClip;
+    private static Clip continuousClip;
     private static boolean isFadingOut = false;
     private static final CountDownLatch latch = new CountDownLatch(1);
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private static boolean continuousLinePlaying = false;
+    private static boolean continuousClipPlaying = false;
+    private static String basePath;
+
+    static {
+        try {
+            basePath = Paths.get(Soundboard.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
         Server server = new Server("localhost", 8080, "/", null, Soundboard.class);
@@ -56,21 +65,21 @@ public class Soundboard {
     public void onMessage(String message, Session session) {
         switch (message) {
             case "pressed":
-                if (!continuousLinePlaying && (songLine == null || !songLine.isOpen())) {
-                    playContinuousSound("Crowd(LOW).ogg");
+                if (!continuousClipPlaying && (songClip == null || !songClip.isRunning())) {
+                    playContinuousSound("Crowd.wav");
                 }
-                playGoalSound("GOAL(Long)(LOW).ogg");
+                playGoalSound("GOAL(Long).wav");
                 break;
             case "released":
-                fadeOutSound(goalLine);
+                fadeOutSound(goalClip);
                 break;
             case "main":
-                playSong("Song(LOW).ogg");
-                scheduler.schedule(() -> fadeOutSound(continuousLine), 5, TimeUnit.SECONDS);
+                playSong("Song.wav");
+                scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
             case "alternate":
-                playSong("Song(Alternate)(LOW).ogg");
-                scheduler.schedule(() -> fadeOutSound(continuousLine), 5, TimeUnit.SECONDS);
+                playSong("Song(Alternate).wav");
+                scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
             case "all_stop":
                 stopAllSounds();
@@ -85,129 +94,88 @@ public class Soundboard {
         System.out.println("Connection closed: " + session.getId());
     }
 
-    private static void playGoalSound(String filePath) {
-        executorService.submit(() -> playOGG(filePath, true));
+    private static void playGoalSound(String fileName) {
+        executorService.submit(() -> playSound(fileName, true));
     }
 
-    private static void playSong(String filePath) {
-        executorService.submit(() -> playOGG(filePath, false));
+    private static void playSong(String fileName) {
+        executorService.submit(() -> playSound(fileName, false));
     }
 
-    private static void playOGG(String filePath, boolean isGoalSound) {
+    private static void playSound(String fileName, boolean isGoalSound) {
         try {
-            File file = new File(filePath);
-            VorbisAudioFileReader reader = new VorbisAudioFileReader();
-            AudioInputStream audioInputStream = reader.getAudioInputStream(file);
-            AudioFormat baseFormat = audioInputStream.getFormat();
-            AudioFormat decodedFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-                    baseFormat.getSampleRate(),
-                    16,
-                    baseFormat.getChannels(),
-                    baseFormat.getChannels() * 2,
-                    baseFormat.getSampleRate(),
-                    false);
-            AudioInputStream decodedAudioInputStream = AudioSystem.getAudioInputStream(decodedFormat, audioInputStream);
-            SourceDataLine line = AudioSystem.getSourceDataLine(decodedFormat);
-            line.open(decodedFormat, 8192); // Increase buffer size
-            line.start();
-
+            File audioFile = new File(basePath, fileName);
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioInputStream);
+            clip.start();
             if (isGoalSound) {
-                if (goalLine != null && goalLine.isOpen()) {
-                    goalLine.stop();
-                    goalLine.close();
+                if (goalClip != null && goalClip.isRunning()) {
+                    goalClip.stop();
+                    goalClip.close();
                 }
-                goalLine = line;
+                goalClip = clip;
             } else {
-                if (songLine != null && songLine.isOpen()) {
-                    songLine.stop();
-                    songLine.close();
+                if (songClip != null && songClip.isRunning()) {
+                    songClip.stop();
+                    songClip.close();
                 }
-                songLine = line;
+                songClip = clip;
             }
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = decodedAudioInputStream.read(buffer, 0, buffer.length)) != -1) {
-                line.write(buffer, 0, bytesRead);
-            }
-
-            line.drain();
-            line.stop();
-            line.close();
-
             isFadingOut = false;
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
             e.printStackTrace();
         }
     }
 
-    private static void playContinuousSound(String filePath) {
+    private static void playContinuousSound(String fileName) {
         executorService.submit(() -> {
             try {
-                File file = new File(filePath);
-                VorbisAudioFileReader reader = new VorbisAudioFileReader();
-                AudioInputStream audioInputStream = reader.getAudioInputStream(file);
-                AudioFormat baseFormat = audioInputStream.getFormat();
-                AudioFormat decodedFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-                        baseFormat.getSampleRate(),
-                        16,
-                        baseFormat.getChannels(),
-                        baseFormat.getChannels() * 2,
-                        baseFormat.getSampleRate(),
-                        false);
-                AudioInputStream decodedAudioInputStream = AudioSystem.getAudioInputStream(decodedFormat, audioInputStream);
-                continuousLine = AudioSystem.getSourceDataLine(decodedFormat);
-                continuousLine.open(decodedFormat, 8192); // Increase buffer size
-                continuousLine.start();
-                continuousLinePlaying = true;
-
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = decodedAudioInputStream.read(buffer, 0, buffer.length)) != -1) {
-                    continuousLine.write(buffer, 0, bytesRead);
-                }
-
-                continuousLine.drain();
-                continuousLine.stop();
-                continuousLine.close();
-                continuousLinePlaying = false;
+                File audioFile = new File(basePath, fileName);
+                AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
+                continuousClip = AudioSystem.getClip();
+                continuousClip.open(audioInputStream);
+                continuousClip.start();
+                continuousClipPlaying = true;
             } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
                 e.printStackTrace();
             }
         });
     }
 
-    private static void fadeOutSound(SourceDataLine line) {
-        if (line != null && line.isRunning() && !isFadingOut) {
+    private static void fadeOutSound(Clip clip) {
+        if (clip != null && clip.isRunning() && !isFadingOut) {
             isFadingOut = true;
             new Thread(() -> {
-                try {
-                    FloatControl volumeControl = (FloatControl) line.getControl(FloatControl.Type.MASTER_GAIN);
-                    float initialVolume = volumeControl.getValue();
-                    for (int i = 0; i <= 100; i++) {
-                        float newVolume = initialVolume - (initialVolume - volumeControl.getMinimum()) * (i / 100.0f);
-                        volumeControl.setValue(newVolume);
-                        try {
-                            Thread.sleep(25); // Total of 2.5 seconds for fade-out
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                float initialVolume = volume.getValue();
+                int steps = 200; // Increase the number of steps for a smoother fade-out
+                float stepSize = (initialVolume - volume.getMinimum()) / steps;
+
+                for (int i = 0; i <= steps; i++) {
+                    float newVolume = initialVolume - stepSize * i;
+                    volume.setValue(newVolume);
+                    try {
+                        Thread.sleep(10); // Shorter sleep duration for smoother transition
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                    line.stop();
-                    line.close();
-                } catch (IllegalArgumentException e) {
-                    // MASTER_GAIN control not supported, just stop the line
-                    line.stop();
-                    line.close();
+                }
+
+                clip.stop();
+                clip.close();
+                if (clip == continuousClip) {
+                    continuousClipPlaying = false;
                 }
                 isFadingOut = false;
             }).start();
         }
     }
 
+
     private static void stopAllSounds() {
-        fadeOutSound(goalLine);
-        fadeOutSound(songLine);
-        fadeOutSound(continuousLine);
+        fadeOutSound(goalClip);
+        fadeOutSound(songClip);
+        fadeOutSound(continuousClip);
     }
 }
