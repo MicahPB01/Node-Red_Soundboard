@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
+import java.sql.SQLOutput;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,7 +19,9 @@ import java.util.concurrent.TimeUnit;
 @ServerEndpoint("/soundboard")
 public class Soundboard {
     private static Clip goalClip;
+    private static Clip alternateGoalClip;
     private static Clip songClip;
+    private static Clip thirdSongClip;
     private static Clip continuousClip;
     private static boolean isFadingOut = false;
     private static final CountDownLatch latch = new CountDownLatch(1);
@@ -63,6 +66,7 @@ public class Soundboard {
 
     @OnMessage
     public void onMessage(String message, Session session) {
+        System.out.println(message);
         switch (message) {
             case "pressed":
                 if (!continuousClipPlaying && (songClip == null || !songClip.isRunning())) {
@@ -72,6 +76,7 @@ public class Soundboard {
                 break;
             case "released":
                 fadeOutSound(goalClip);
+                fadeOutSound(alternateGoalClip);
                 break;
             case "main":
                 playSong("Song.wav");
@@ -80,6 +85,12 @@ public class Soundboard {
             case "alternate":
                 playSong("Song(Alternate).wav");
                 scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
+                break;
+            case "EGoal":
+                playAlternateGoalSound("EGoal.wav");
+                break;
+            case "EGoalSong":
+                playThirdSong("EGoalSong.wav");
                 break;
             case "all_stop":
                 stopAllSounds();
@@ -95,14 +106,22 @@ public class Soundboard {
     }
 
     private static void playGoalSound(String fileName) {
-        executorService.submit(() -> playSound(fileName, true));
+        executorService.submit(() -> playSound(fileName, true, false));
+    }
+
+    private static void playAlternateGoalSound(String fileName) {
+        executorService.submit(() -> playSound(fileName, true, true));
     }
 
     private static void playSong(String fileName) {
-        executorService.submit(() -> playSound(fileName, false));
+        executorService.submit(() -> playSound(fileName, false, false));
     }
 
-    private static void playSound(String fileName, boolean isGoalSound) {
+    private static void playThirdSong(String fileName) {
+        executorService.submit(() -> playSound(fileName, false, true));
+    }
+
+    private static void playSound(String fileName, boolean isGoalSound, boolean isAlternate) {
         try {
             File audioFile = new File(basePath, fileName);
             AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
@@ -110,17 +129,33 @@ public class Soundboard {
             clip.open(audioInputStream);
             clip.start();
             if (isGoalSound) {
-                if (goalClip != null && goalClip.isRunning()) {
-                    goalClip.stop();
-                    goalClip.close();
+                if (isAlternate) {
+                    if (alternateGoalClip != null && alternateGoalClip.isRunning()) {
+                        alternateGoalClip.stop();
+                        alternateGoalClip.close();
+                    }
+                    alternateGoalClip = clip;
+                } else {
+                    if (goalClip != null && goalClip.isRunning()) {
+                        goalClip.stop();
+                        goalClip.close();
+                    }
+                    goalClip = clip;
                 }
-                goalClip = clip;
             } else {
-                if (songClip != null && songClip.isRunning()) {
-                    songClip.stop();
-                    songClip.close();
+                if (isAlternate) {
+                    if (thirdSongClip != null && thirdSongClip.isRunning()) {
+                        thirdSongClip.stop();
+                        thirdSongClip.close();
+                    }
+                    thirdSongClip = clip;
+                } else {
+                    if (songClip != null && songClip.isRunning()) {
+                        songClip.stop();
+                        songClip.close();
+                    }
+                    songClip = clip;
                 }
-                songClip = clip;
             }
             isFadingOut = false;
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
@@ -172,10 +207,11 @@ public class Soundboard {
         }
     }
 
-
     private static void stopAllSounds() {
         fadeOutSound(goalClip);
+        fadeOutSound(alternateGoalClip);
         fadeOutSound(songClip);
+        fadeOutSound(thirdSongClip);
         fadeOutSound(continuousClip);
     }
 }

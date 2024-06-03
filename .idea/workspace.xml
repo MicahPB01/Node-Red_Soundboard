@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="Using java sound libraries">
-      <change afterPath="$PROJECT_DIR$/src/main/Crowd.wav" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/GOAL(Long).wav" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/Song(Alternate).wav" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/Song.wav" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="better fade out">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" afterDir="false" />
     </list>
@@ -91,6 +86,27 @@
     </key>
   </component>
   <component name="RunManager" selected="Gradle.Node-Red_Soundboard [build]">
+    <configuration name="Node-Red_Soundboard [assemble]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="assemble" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <method v="2" />
+    </configuration>
     <configuration name="Node-Red_Soundboard [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -136,6 +152,7 @@
     <recent_temporary>
       <list>
         <item itemvalue="Gradle.Node-Red_Soundboard [build]" />
+        <item itemvalue="Gradle.Node-Red_Soundboard [assemble]" />
         <item itemvalue="Gradle.Node-Red_Soundboard [run]" />
       </list>
     </recent_temporary>
@@ -156,11 +173,19 @@
       <option name="project" value="LOCAL" />
       <updated>1717172068926</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="better fade out">
+      <created>1717277147897</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1717277147897</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Using java sound libraries" />
-    <option name="LAST_COMMIT_MESSAGE" value="Using java sound libraries" />
+    <MESSAGE value="better fade out" />
+    <option name="LAST_COMMIT_MESSAGE" value="better fade out" />
   </component>
 </project>
