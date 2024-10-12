@@ -1,14 +1,20 @@
 package org.example;
 
+import javax.servlet.ServletOutputStream;
 import javax.sound.sampled.*;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import org.glassfish.tyrus.server.Server;
+import spark.Spark;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.*;
 
 @ServerEndpoint("/soundboard")
@@ -16,7 +22,7 @@ public class Soundboard {
     private static Clip goalClip;
     private static Clip alternateGoalClip;
     private static Clip songClip;
-    private static Clip thirdSongClip;
+    private static Clip alternateSongClip;
     private static Clip continuousClip;
     private static boolean goalClipFadingOut = false;
     private static boolean alternateGoalClipFadingOut = false;
@@ -29,15 +35,19 @@ public class Soundboard {
     private static boolean continuousClipPlaying = false;
     private static String basePath;
     private static final ConcurrentHashMap<Clip, Future<?>> fadeOutTasks = new ConcurrentHashMap<>();
+    private static int homeScore = 0;
+    private static int awayScore = 0;
+    private static Set<Session> soundboardSessions = new CopyOnWriteArraySet<>();  // Sessions for Postman or external tool
+    private static Set<Session> clientSessions = new CopyOnWriteArraySet<>();  // Sessions for the browser clients
 
     static {
         try {
             basePath = Paths.get(Soundboard.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString();
-            goalClip = loadClip("GOAL(Long).wav");
-            alternateGoalClip = loadClip("EGoal.wav");
-            songClip = loadClip("Song.wav");
-            thirdSongClip = loadClip("EGoalSong.wav");
-            continuousClip = loadClip("Crowd.wav");
+            goalClip = loadClip("goal.wav");
+            alternateGoalClip = loadClip("alternateGoal.wav");
+            songClip = loadClip("song.wav");
+            alternateSongClip = loadClip("alternateSong.wav");
+            continuousClip = loadClip("crowd.wav");
         } catch (URISyntaxException | IOException | UnsupportedAudioFileException | LineUnavailableException e) {
             e.printStackTrace();
         }
@@ -57,25 +67,146 @@ public class Soundboard {
     }
 
     public static void main(String[] args) {
-        Server server = new Server("localhost", 8080, "/", null, Soundboard.class);
+        // Create a set of classes that represent WebSocket endpoints
+        Set<Class<?>> endpoints = new HashSet<>();
+        endpoints.add(Soundboard.class);
+        endpoints.add(Soundboard.ClientEndpoint.class);  // Register the client WebSocket endpoint
+
+        // Start the WebSocket server with both soundboard and client endpoints
+        Server server = new Server("192.168.99.31", 8080, "/", null, endpoints);
+
+        // Start static file server (Spark for serving HTML and static assets)
+        Spark.port(4567);
+        Spark.staticFiles.location("/public");
+        Spark.get("/", (req, res) -> {
+            try {
+                String htmlFilePath = Paths.get("public/index.html").toString();
+                return new String(Files.readAllBytes(Paths.get(htmlFilePath)));
+            } catch (IOException e) {
+                e.printStackTrace();
+                res.status(500);
+                return "Error loading page";
+            }
+        });
+
         try {
             server.start();
-            System.out.println("Soundboard WebSocket server started.");
+            System.out.println("WebSocket server started.");
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     server.stop();
-                    latch.countDown();
-                    executorService.shutdown();
-                    scheduler.shutdown();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }));
-            latch.await(); // Keep the main thread alive
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        Spark.get("/proxy/:playerId", (req, res) -> {
+            // Get the playerId from the URL parameters
+            String playerId = req.params("playerId");
+            String targetUrl = "https://api-web.nhle.com/v1/player/" + playerId + "/landing";
+
+            // Call the target URL using HttpURLConnection
+            String response = forwardRequestToTargetUrl(targetUrl);
+
+            if (response == null) {
+                res.status(500);
+                return "Error while proxying request";
+            }
+
+            res.type("application/json");
+            return response;
+        });
+
+        Spark.get("/proxyImage", (req, res) -> {
+            // Get the image URL as a query parameter
+            String imageUrl = req.queryParams("url");
+
+            if (imageUrl == null || imageUrl.isEmpty()) {
+                res.status(400);
+                return "Missing image URL";
+            }
+
+            // Forward request to the target image URL
+            HttpURLConnection connection = (HttpURLConnection) new URL(imageUrl).openConnection();
+            connection.setRequestMethod("GET");
+
+            int statusCode = connection.getResponseCode();
+            if (statusCode != 200) {
+                res.status(statusCode);
+                return "Failed to retrieve image from " + imageUrl;
+            }
+
+            // Get content type from the target server (e.g., image/jpeg or image/png)
+            String contentType = connection.getContentType();
+            res.type(contentType);
+
+            try (InputStream inputStream = connection.getInputStream()) {
+                // Write image data to the response output stream
+                ServletOutputStream outputStream = res.raw().getOutputStream();
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+
+                outputStream.flush();
+            } catch (Exception e) {
+                res.status(500);
+                return "Error while proxying the image";
+            }
+
+            return res.raw(); // Return the response with image data
+        });
+
+
+        Spark.awaitInitialization();
+
+
     }
+
+    private static String forwardRequestToTargetUrl(String targetUrl) {
+        try {
+            // Create a URL object with the target API URL
+            URL url = new URL(targetUrl);
+            System.out.println("getting player info");
+
+            // Open a connection to the URL
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
+
+            // Check if the request was successful (HTTP 200 OK)
+            int responseCode = connection.getResponseCode();
+            if (responseCode == 200) {
+                // Read the response from the input stream
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder content = new StringBuilder();
+
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+
+                // Close the connections
+                in.close();
+                connection.disconnect();
+
+                // Return the content of the response
+                return content.toString();
+            } else {
+                System.out.println("Error: Failed to fetch data, response code: " + responseCode);
+                return null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 
     @OnOpen
     public void onOpen(Session session) {
@@ -83,33 +214,37 @@ public class Soundboard {
     }
 
     @OnMessage
-    public void onMessage(String message, Session session) {
+    public void onMessage(String message, Session session) throws IOException {
         System.out.println(message);
         switch (message) {
-            case "pressed":
+            case "goal_push_panthers":
                 if (!continuousClipPlaying && (songClip == null || !songClip.isRunning())) {
                     playContinuousClip();
                 }
                 playClip(goalClip);
+                broadcastPanthersGoal();
                 break;
-            case "released":
+            case "goal_release":
                 fadeOutSound(goalClip);
                 fadeOutSound(alternateGoalClip);
                 break;
-            case "main":
+            case "panther_song":
                 playClip(songClip);
                 scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
-            case "alternate":
-                playClip(songClip);
+            case "alternate_song":
+                playClip(alternateSongClip);
                 scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
-            case "EGoal":
+            case "goal_push_alternate":
+                if (!continuousClipPlaying && (alternateSongClip == null || !alternateSongClip.isRunning())) {
+                    playContinuousClip();
+                }
                 playClip(alternateGoalClip);
+                broadcastLightningGoal();
+
                 break;
-            case "EGoalSong":
-                playClip(thirdSongClip);
-                break;
+
             case "all_stop":
                 stopAllSounds();
                 break;
@@ -151,7 +286,7 @@ public class Soundboard {
                 if (clip == goalClip) goalClipFadingOut = true;
                 if (clip == alternateGoalClip) alternateGoalClipFadingOut = true;
                 if (clip == songClip) songClipFadingOut = true;
-                if (clip == thirdSongClip) thirdSongClipFadingOut = true;
+                if (clip == alternateSongClip) thirdSongClipFadingOut = true;
                 if (clip == continuousClip) continuousClipFadingOut = true;
 
                 FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
@@ -184,7 +319,7 @@ public class Soundboard {
                 if (clip == goalClip) goalClipFadingOut = false;
                 if (clip == alternateGoalClip) alternateGoalClipFadingOut = false;
                 if (clip == songClip) songClipFadingOut = false;
-                if (clip == thirdSongClip) thirdSongClipFadingOut = false;
+                if (clip == alternateSongClip) thirdSongClipFadingOut = false;
                 if (clip == continuousClip) continuousClipFadingOut = false;
             });
 
@@ -209,7 +344,95 @@ public class Soundboard {
         fadeOutSound(goalClip);
         fadeOutSound(alternateGoalClip);
         fadeOutSound(songClip);
-        fadeOutSound(thirdSongClip);
+        fadeOutSound(alternateSongClip);
         continuousClipPlaying = false;
+        stopVideo();
     }
+
+
+    // New endpoint specifically for the client (browser)
+    @ServerEndpoint("/client")
+    public static class ClientEndpoint {
+        @OnOpen
+        public void onClientOpen(Session session) {
+            clientSessions.add(session);  // Add session for the browser client
+            System.out.println("Client connection opened: " + session.getId());
+        }
+
+        @OnClose
+        public void onClientClose(Session session) {
+            clientSessions.remove(session);  // Remove session when closed
+            System.out.println("Client connection closed: " + session.getId());
+        }
+
+        @OnMessage
+        public void onClientMessage(String message, Session session) {
+            System.out.println("Received from client: " + message);
+        }
+    }
+
+    // Method to broadcast the score update to both soundboard and browser
+    private static void broadcastScoreUpdate() throws IOException {
+        String scoreUpdate = "home:" + homeScore + ",away:" + awayScore;
+
+        // Broadcast to soundboard sessions
+        for (Session session : soundboardSessions) {
+            try {
+                session.getBasicRemote().sendText(scoreUpdate);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            session.getBasicRemote().sendText("pressed");
+        }
+
+        // Broadcast to client (browser) sessions
+        for (Session session : clientSessions) {
+            try {
+                session.getBasicRemote().sendText(scoreUpdate);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void broadcastPanthersGoal() {
+        String testMessage = "spressed";
+
+        // Broadcast to client (browser) sessions
+        for (Session session : clientSessions) {
+            try {
+                session.getBasicRemote().sendText(testMessage);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void broadcastLightningGoal() {
+        String testMessage = "lpressed";
+
+        // Broadcast to client (browser) sessions
+        for (Session session : clientSessions) {
+            try {
+                session.getBasicRemote().sendText(testMessage);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void stopVideo() {
+        String testMessage = "all_stop";
+
+        // Broadcast to client (browser) sessions
+        for (Session session : clientSessions) {
+            try {
+                session.getBasicRemote().sendText(testMessage);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
 }

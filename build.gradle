@@ -19,6 +19,7 @@ dependencies {
     implementation 'org.glassfish.tyrus:tyrus-container-grizzly-client:1.17'
     implementation 'org.glassfish.tyrus:tyrus-container-grizzly-server:1.17'
     implementation 'com.googlecode.soundlibs:vorbisspi:1.0.3.3'
+    implementation group: 'com.sparkjava', name: 'spark-core', version: '2.9.4'
 }
 
 
