@@ -162,6 +162,23 @@ public class Soundboard {
             return res.raw(); // Return the response with image data
         });
 
+        // Proxy to get real-time play-by-play data for a game
+        Spark.get("/proxyGame/:gameId", (req, res) -> {
+            String gameId = req.params("gameId");
+            String targetUrl = "https://api-web.nhle.com/v1/gamecenter/" + gameId + "/play-by-play";
+
+            String response = forwardRequestToTargetUrl(targetUrl);
+
+            if (response == null) {
+                res.status(500);
+                return "Error while proxying request";
+            }
+
+            res.type("application/json");
+            return response;
+        });
+
+
 
         Spark.awaitInitialization();
 
