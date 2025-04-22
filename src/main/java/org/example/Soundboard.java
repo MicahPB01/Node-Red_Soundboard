@@ -16,6 +16,10 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
+import org.apache.batik.transcoder.TranscoderException;
+import org.apache.batik.transcoder.TranscoderInput;
+import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.image.PNGTranscoder;
 
 @ServerEndpoint("/soundboard")
 public class Soundboard {
@@ -39,18 +43,29 @@ public class Soundboard {
     private static int awayScore = 0;
     private static Set<Session> soundboardSessions = new CopyOnWriteArraySet<>();  // Sessions for Postman or external tool
     private static Set<Session> clientSessions = new CopyOnWriteArraySet<>();  // Sessions for the browser clients
+    private static boolean enableWeb = true;
 
     static {
         try {
             basePath = Paths.get(Soundboard.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString();
-            goalClip = loadClip("goal.wav");
-            alternateGoalClip = loadClip("alternateGoal.wav");
-            songClip = loadClip("song.wav");
-            alternateSongClip = loadClip("alternateSong.wav");
-            continuousClip = loadClip("crowd.wav");
-        } catch (URISyntaxException | IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
+
+        try { goalClip            = loadClip("goal.wav");          }
+        catch(Exception e) { e.printStackTrace(); }
+
+        try { alternateGoalClip   = loadClip("alternateGoal.wav");     }
+        catch(Exception e) { e.printStackTrace(); }
+
+        try { songClip            = loadClip("song.wav");          }
+        catch(Exception e) { e.printStackTrace(); }
+
+        try { alternateSongClip   = loadClip("alternateSong.wav");      }
+        catch(Exception e) { e.printStackTrace(); }
+
+        try { continuousClip      = loadClip("crowd.wav");         }
+        catch(Exception e) { e.printStackTrace(); }
     }
 
     private static Clip loadClip(String fileName) throws IOException, UnsupportedAudioFileException, LineUnavailableException {
@@ -63,7 +78,7 @@ public class Soundboard {
 
     private static void setVolumeToMax(Clip clip) {
         FloatControl volumeControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-        volumeControl.setValue(volumeControl.getMaximum());
+        volumeControl.setValue(volumeControl.getMaximum() - 10.0f);
     }
 
     public static void main(String[] args) {
@@ -73,116 +88,161 @@ public class Soundboard {
         endpoints.add(Soundboard.ClientEndpoint.class);  // Register the client WebSocket endpoint
 
         // Start the WebSocket server with both soundboard and client endpoints
-        Server server = new Server("192.168.99.31", 8080, "/", null, endpoints);
+        Server server = new Server("localhost", 8080, "/", null, endpoints);
 
-        // Start static file server (Spark for serving HTML and static assets)
-        Spark.port(4567);
-        Spark.staticFiles.location("/public");
-        Spark.get("/", (req, res) -> {
-            try {
-                String htmlFilePath = Paths.get("public/index.html").toString();
-                return new String(Files.readAllBytes(Paths.get(htmlFilePath)));
-            } catch (IOException e) {
-                e.printStackTrace();
-                res.status(500);
-                return "Error loading page";
-            }
-        });
 
-        try {
-            server.start();
-            System.out.println("WebSocket server started.");
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        if (enableWeb) {
+            // Start static file server (Spark for serving HTML and static assets)
+            Spark.port(4567);
+            Spark.staticFiles.location("/public");
+            Spark.get("/", (req, res) -> {
                 try {
-                    server.stop();
+                    String htmlFilePath = Paths.get("public/index.html").toString();
+                    return new String(Files.readAllBytes(Paths.get(htmlFilePath)));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    res.status(500);
+                    return "Error loading page";
+                }
+            });
+
+            try {
+                server.start();
+                System.out.println("WebSocket server started.");
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    try {
+                        server.stop();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Spark.get("/proxy/:playerId", (req, res) -> {
+                // Get the playerId from the URL parameters
+                String playerId = req.params("playerId");
+                String targetUrl = "https://api-web.nhle.com/v1/player/" + playerId + "/landing";
+
+                // Call the target URL using HttpURLConnection
+                String response = forwardRequestToTargetUrl(targetUrl);
+
+                if (response == null) {
+                    res.status(500);
+                    return "Error while proxying request";
+                }
+
+                res.type("application/json");
+                return response;
+            });
+
+            Spark.get("/proxyImage", (req, res) -> {
+                // Get the image URL as a query parameter
+                String imageUrl = req.queryParams("url");
+
+                if (imageUrl == null || imageUrl.isEmpty()) {
+                    res.status(400);
+                    return "Missing image URL";
+                }
+
+                // Forward request to the target image URL
+                HttpURLConnection connection = (HttpURLConnection) new URL(imageUrl).openConnection();
+                connection.setRequestMethod("GET");
+
+                int statusCode = connection.getResponseCode();
+                if (statusCode != 200) {
+                    res.status(statusCode);
+                    return "Failed to retrieve image from " + imageUrl;
+                }
+
+                // Get content type from the target server (e.g., image/jpeg or image/png)
+                String contentType = connection.getContentType();
+                res.type(contentType);
+
+                try (InputStream inputStream = connection.getInputStream()) {
+                    // Write image data to the response output stream
+                    ServletOutputStream outputStream = res.raw().getOutputStream();
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                    }
+
+                    outputStream.flush();
+                } catch (Exception e) {
+                    res.status(500);
+                    return "Error while proxying the image";
+                }
+
+                return res.raw(); // Return the response with image data
+            });
+
+            // Proxy to get real-time play-by-play data for a game
+            Spark.get("/proxyGame/:gameId", (req, res) -> {
+                String gameId = req.params("gameId");
+                String targetUrl = "https://api-web.nhle.com/v1/gamecenter/" + gameId + "/play-by-play";
+
+                String response = forwardRequestToTargetUrl(targetUrl);
+
+                if (response == null) {
+                    res.status(500);
+                    return "Error while proxying request";
+                }
+
+                res.type("application/json");
+                return response;
+            });
+
+// Proxy to get the landing data (includes clock.timeRemaining)
+            Spark.get("/proxyLanding/:gameId", (req, res) -> {
+                String gameId = req.params("gameId");
+                String targetUrl = "https://api-web.nhle.com/v1/gamecenter/" + gameId + "/landing";
+
+                String response = forwardRequestToTargetUrl(targetUrl);
+                if (response == null) {
+                    res.status(500);
+                    return "Error while proxying landing request";
+                }
+
+                res.type("application/json");
+                return response;
+            });
+
+            Spark.get("/convertSvgToPng", (req, res) -> {
+                String svgUrl = req.queryParams("svgUrl");  // Get the SVG URL from the request query parameters
+
+                if (svgUrl == null || svgUrl.isEmpty()) {
+                    res.status(400);
+                    return "Missing SVG URL";
+                }
+
+                try {
+                    // Convert the SVG to PNG
+                    ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
+                    convertSvgToPng(svgUrl, pngOutputStream);
+
+                    // Serve the PNG as a response
+                    res.type("image/png");
+                    byte[] pngData = pngOutputStream.toByteArray();
+                    res.raw().setContentLength(pngData.length);
+                    OutputStream out = res.raw().getOutputStream();
+                    out.write(pngData);
+                    out.flush();
+                    return res.raw();
                 } catch (Exception e) {
                     e.printStackTrace();
+                    res.status(500);
+                    return "Error converting SVG to PNG";
                 }
-            }));
-        } catch (Exception e) {
-            e.printStackTrace();
+            });
+
+
+            Spark.awaitInitialization();
+
+
         }
-
-        Spark.get("/proxy/:playerId", (req, res) -> {
-            // Get the playerId from the URL parameters
-            String playerId = req.params("playerId");
-            String targetUrl = "https://api-web.nhle.com/v1/player/" + playerId + "/landing";
-
-            // Call the target URL using HttpURLConnection
-            String response = forwardRequestToTargetUrl(targetUrl);
-
-            if (response == null) {
-                res.status(500);
-                return "Error while proxying request";
-            }
-
-            res.type("application/json");
-            return response;
-        });
-
-        Spark.get("/proxyImage", (req, res) -> {
-            // Get the image URL as a query parameter
-            String imageUrl = req.queryParams("url");
-
-            if (imageUrl == null || imageUrl.isEmpty()) {
-                res.status(400);
-                return "Missing image URL";
-            }
-
-            // Forward request to the target image URL
-            HttpURLConnection connection = (HttpURLConnection) new URL(imageUrl).openConnection();
-            connection.setRequestMethod("GET");
-
-            int statusCode = connection.getResponseCode();
-            if (statusCode != 200) {
-                res.status(statusCode);
-                return "Failed to retrieve image from " + imageUrl;
-            }
-
-            // Get content type from the target server (e.g., image/jpeg or image/png)
-            String contentType = connection.getContentType();
-            res.type(contentType);
-
-            try (InputStream inputStream = connection.getInputStream()) {
-                // Write image data to the response output stream
-                ServletOutputStream outputStream = res.raw().getOutputStream();
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-
-                outputStream.flush();
-            } catch (Exception e) {
-                res.status(500);
-                return "Error while proxying the image";
-            }
-
-            return res.raw(); // Return the response with image data
-        });
-
-        // Proxy to get real-time play-by-play data for a game
-        Spark.get("/proxyGame/:gameId", (req, res) -> {
-            String gameId = req.params("gameId");
-            String targetUrl = "https://api-web.nhle.com/v1/gamecenter/" + gameId + "/play-by-play";
-
-            String response = forwardRequestToTargetUrl(targetUrl);
-
-            if (response == null) {
-                res.status(500);
-                return "Error while proxying request";
-            }
-
-            res.type("application/json");
-            return response;
-        });
-
-
-
-        Spark.awaitInitialization();
-
-
     }
 
     private static String forwardRequestToTargetUrl(String targetUrl) {
@@ -247,11 +307,9 @@ public class Soundboard {
                 break;
             case "panther_song":
                 playClip(songClip);
-                scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
             case "alternate_song":
                 playClip(alternateSongClip);
-                scheduler.schedule(() -> fadeOutSound(continuousClip), 5, TimeUnit.SECONDS);
                 break;
             case "goal_push_alternate":
                 if (!continuousClipPlaying && (alternateSongClip == null || !alternateSongClip.isRunning())) {
@@ -286,6 +344,7 @@ public class Soundboard {
     }
 
     private static void playContinuousClip() {
+
         executorService.submit(() -> {
             if (!continuousClipPlaying) {
                 continuousClip.setFramePosition(0);
@@ -294,6 +353,8 @@ public class Soundboard {
                 continuousClipPlaying = true;
             }
         });
+
+
     }
 
     private static void fadeOutSound(Clip clip) {
@@ -306,9 +367,10 @@ public class Soundboard {
                 if (clip == alternateSongClip) thirdSongClipFadingOut = true;
                 if (clip == continuousClip) continuousClipFadingOut = true;
 
-                FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-                float initialVolume = volume.getValue();
-                float minVolume = volume.getMinimum();
+                FloatControl volumeControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                volumeControl.setValue(volumeControl.getMaximum() - 10.0f);
+                float initialVolume = volumeControl.getValue();
+                float minVolume = volumeControl.getMinimum();
                 int steps = 400; // More steps for a smoother fade-out
                 float stepSize = (initialVolume - minVolume) / steps;
 
@@ -318,7 +380,7 @@ public class Soundboard {
                         return;
                     }
                     float newVolume = initialVolume - stepSize * i;
-                    volume.setValue(Math.max(newVolume, minVolume));
+                    volumeControl.setValue(Math.max(newVolume, minVolume));
                     try {
                         Thread.sleep(5); // Adjust the sleep duration for a smoother transition
                     } catch (InterruptedException e) {
@@ -450,6 +512,27 @@ public class Soundboard {
             }
         }
     }
+
+    public static void convertSvgToPng(String svgUrl, OutputStream outputStream) throws IOException, TranscoderException {
+        // Fetch the SVG content from the URL
+        InputStream svgInputStream = new URL(svgUrl).openStream();
+
+        // Create a PNGTranscoder object
+        PNGTranscoder transcoder = new PNGTranscoder();
+
+        // Input the SVG data
+        TranscoderInput input = new TranscoderInput(svgInputStream);
+
+        // Output the PNG to the provided OutputStream
+        TranscoderOutput output = new TranscoderOutput(outputStream);
+
+        // Perform the conversion
+        transcoder.transcode(input, output);
+
+        // Close the input stream
+        svgInputStream.close();
+    }
+
 
 
 }

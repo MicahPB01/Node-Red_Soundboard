@@ -1,0 +1,190 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: black;
+  color: white;
+  position: relative;
+}
+
+/* 5) Ensure the container still aligns nicely */
+#scoreboard {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  padding: 20px;
+  z-index: 10;
+}
+
+/* 1) Give home‑logo & away‑logo more flex space */
+#home-logo,
+#away-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 2;            /* twice as wide as the clock panel */
+  max-width: 80%;     /* cap at 40% of the row */
+  text-align: center;
+}
+
+/* 2) Shrink the clock panel slightly */
+#time-remaining {
+  flex: 1;            /* half the width of each box‑score panel */
+  max-width: 20%;
+  text-align: center;
+}
+
+/* 3) Boost font‑sizes so stats read BIG on screen */
+#home-logo h2,
+#away-logo h2 {
+  font-size: 6em;
+  margin: 0.2em 0;
+}
+
+/* Stats: make all <h3> in home/away much larger */
+#home-logo h3,
+#away-logo h3 {
+  font-size: 4em;    /* was 2em—bump up */
+  line-height: 1.1;    /* tighten the spacing a bit */
+  margin: 10px 0;      /* give each line room to breathe */
+  font-weight: 600;    /* optional: make them stand out */
+}
+
+/* 4) Resize logos to fit their containers */
+#home-logo img,
+#away-logo img {
+  width: auto;
+  height: 400px;      /* adjust as needed */
+  margin-bottom: 10px;
+}
+
+.half {
+  position: absolute;
+  width: 50%;
+  height: 100%;
+  top: 0;
+}
+
+#left-half {
+  left: 0;
+  background-color: #ccc;
+}
+
+#right-half {
+  right: 0;
+  background-color: #ccc;
+}
+
+#blend-middle {
+  position: absolute;
+  left: 45%;
+  width: 10%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(0,0,0,0.2),
+    transparent
+  );
+  z-index: 0;
+}
+
+#animation {
+  display: none;
+  font-size: 3em;
+  color: yellow;
+}
+
+video {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 1;
+}
+
+#play-by-play {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 10px;
+  font-size: 2.5em;
+  background-color: rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  flex-wrap: wrap;
+  overflow-wrap: break-word;
+  text-align: center;
+  word-wrap: break-word;
+}
+
+#headshots-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+#headshots-container img {
+  margin: 0 10px;
+  width: 200px;
+  height: auto;
+  border-radius: 50%;
+}
+
+#settings-button {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  padding: 10px 20px;
+  font-size: 1em;
+  z-index: 100;
+}
+
+#settings {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  display: none;
+  background-color: rgba(0,0,0,0.8);
+  padding: 10px;
+  border-radius: 10px;
+  z-index: 101;
+}
+
+#game-id-input-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+#game-id-input,
+#gamedelay {
+  width: 100px;
+  padding: 5px;
+  font-size: 1em;
+  margin-bottom: 10px;
+}
+
+#settings button {
+  margin-top: 10px;
+  padding: 5px 10px;
+  font-size: 1em;
+}
