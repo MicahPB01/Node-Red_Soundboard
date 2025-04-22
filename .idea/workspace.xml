@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="Added live updates">
+    <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="QOL">
       <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA.mp4" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA_HORN.wav" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA_SONG.wav" afterDir="false" />
@@ -283,7 +283,15 @@
       <option name="project" value="LOCAL" />
       <updated>1728850178700</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="QOL">
+      <option name="closed" value="true" />
+      <created>1745299288351</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1745299288351</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -292,6 +300,7 @@
     <MESSAGE value="added edmonton sounds - non-preloaded" />
     <MESSAGE value="Added web server element" />
     <MESSAGE value="Added live updates" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added live updates" />
+    <MESSAGE value="QOL" />
+    <option name="LAST_COMMIT_MESSAGE" value="QOL" />
   </component>
 </project>
