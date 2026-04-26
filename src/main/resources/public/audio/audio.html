@@ -614,7 +614,12 @@
       const buffer = await fetchAndDecodeTrack(key);
       const track = audioTracks[key];
 
-      if (restart || activeNodes.has(key)) {
+      if (!restart && activeNodes.has(key)) {
+        setPlaybackStatus(`Playback: ${track.label}`);
+        return;
+      }
+
+      if (activeNodes.has(key)) {
         clearTrackNode(key);
       }
 
@@ -799,15 +804,15 @@
     async function previewCommand(command) {
       switch (command) {
         case 'goal_push_panthers':
-          await playTrack('crowd');
+          await playTrack('crowd', false);
           await playTrack('panthersGoal');
           break;
         case 'goal_push_alternate':
-          await playTrack('crowd');
+          await playTrack('crowd', false);
           await playTrack('lightningGoal');
           break;
         case 'goal_release':
-          fadeOutTracks(['panthersGoal', 'lightningGoal']);
+          fadeOutTracks(['panthersGoal', 'lightningGoal'], 1200);
           break;
         case 'panther_song':
           await playTrack('panthersSong');

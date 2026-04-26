@@ -37,7 +37,6 @@ public class Soundboard {
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static boolean continuousClipPlaying = false;
-    private static String basePath;
     private static final ConcurrentHashMap<Clip, Future<?>> fadeOutTasks = new ConcurrentHashMap<>();
     private static int homeScore = 0;
     private static int awayScore = 0;
@@ -46,12 +45,6 @@ public class Soundboard {
     private static boolean enableWeb = true;
 
     static {
-        try {
-            basePath = Paths.get(Soundboard.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
         try { goalClip            = loadClip("goal.wav");          }
         catch(Exception e) { e.printStackTrace(); }
 
@@ -69,8 +62,12 @@ public class Soundboard {
     }
 
     private static Clip loadClip(String fileName) throws IOException, UnsupportedAudioFileException, LineUnavailableException {
-        File audioFile = new File(basePath, fileName);
-        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(audioFile);
+        InputStream resourceStream = Soundboard.class.getResourceAsStream("/" + fileName);
+        if (resourceStream == null) {
+            throw new FileNotFoundException("Missing audio resource in JAR: " + fileName);
+        }
+
+        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(resourceStream));
         Clip clip = AudioSystem.getClip();
         clip.open(audioInputStream);
         return clip;
