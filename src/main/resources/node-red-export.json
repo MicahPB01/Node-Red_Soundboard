@@ -1,0 +1,1433 @@
+[
+  {
+    "id": "e74e2360d63fb932",
+    "type": "tab",
+    "label": "Soundboard Control",
+    "disabled": false,
+    "info": "Organized into visual sections:\n- Home Assistant inputs\n- HTTP API inputs\n- Goal actions and fog effects\n- Song cycle and color loop\n- Stop/reset actions\n\nBehavior is unchanged; this export mainly improves readability and maintenance."
+  },
+  {
+    "id": "8602aab4663165bb",
+    "type": "websocket out",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "WS Send Goal Start",
+    "server": "",
+    "client": "75cc7ecf9bb05236",
+    "x": 1530,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "3c1ee8985055a222",
+    "type": "websocket out",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "WS Send Goal Release",
+    "server": "",
+    "client": "75cc7ecf9bb05236",
+    "x": 1890,
+    "y": 540,
+    "wires": []
+  },
+  {
+    "id": "8df7718438371b96",
+    "type": "websocket out",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "WS Send Song Command",
+    "server": "",
+    "client": "75cc7ecf9bb05236",
+    "x": 1910,
+    "y": 620,
+    "wires": []
+  },
+  {
+    "id": "a051021c2e49db67",
+    "type": "function",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Generate Color Assignments",
+    "func": "if (!flow.get('isLoopRunning')) {\n    return null;\n}\n\nconst colors = [\n    [255, 0, 0], // Red\n    [0, 0, 255], // Blue\n    [255, 255, 0], // Yellow\n    [0, 255, 255], // Teal\n    [255, 165, 0], // Orange\n    [0, 255, 0], // Green\n    [128, 0, 128], // Purple\n    [255, 192, 203], // Pink\n    [0, 255, 255], // Cyan\n    [255, 0, 255], // Magenta\n    [0, 255, 0], // Lime\n    [255, 215, 0] // Gold\n];\n\nfunction shuffle(array) {\n    let currentIndex = array.length, randomIndex;\n\n    while (currentIndex != 0) {\n        randomIndex = Math.floor(Math.random() * currentIndex);\n        currentIndex--;\n        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];\n    }\n\n    return array;\n}\n\nconst shuffledColors = shuffle(colors.slice());\nmsg.payload = shuffledColors.slice(0, 4);\nreturn msg;",
+    "outputs": 1,
+    "timeout": "",
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1720,
+    "y": 740,
+    "wires": [
+      [
+        "ed443557bc93166e",
+        "4d18f4538cd39582",
+        "551a2fe1a263d204",
+        "7e8db948f34f01d6",
+        "70eed234a7829d75"
+      ]
+    ]
+  },
+  {
+    "id": "70eed234a7829d75",
+    "type": "delay",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Cycle Delay",
+    "pauseType": "delay",
+    "timeout": "468.75",
+    "timeoutUnits": "milliseconds",
+    "rate": "1",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "x": 1720,
+    "y": 800,
+    "wires": [
+      [
+        "a051021c2e49db67"
+      ]
+    ]
+  },
+  {
+    "id": "bf364693772bb68c",
+    "type": "websocket out",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "WS Send All Stop",
+    "server": "",
+    "client": "75cc7ecf9bb05236",
+    "x": 1550,
+    "y": 1040,
+    "wires": []
+  },
+  {
+    "id": "8c6811f8535caee5",
+    "type": "function",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Start Light Cycle",
+    "func": "const isLoopRunning = flow.get('isLoopRunning') || false;\nif (!isLoopRunning) {\n    flow.set('isLoopRunning', true);\n    return [msg, null];\n} else {\n    return [null, null];\n}\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1380,
+    "y": 740,
+    "wires": [
+      [
+        "a051021c2e49db67"
+      ]
+    ]
+  },
+  {
+    "id": "c7772e87f978746f",
+    "type": "function",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "Stop Light Cycle",
+    "func": "flow.set('isLoopRunning', false);\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1400,
+    "y": 900,
+    "wires": [
+      [
+        "a051021c2e49db67",
+        "c344baa4572d50ff"
+      ]
+    ]
+  },
+  {
+    "id": "c00ae3bf16ac2f03",
+    "type": "inject",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "Manual Stop Test",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 1200,
+    "y": 960,
+    "wires": [
+      [
+        "c7772e87f978746f",
+        "bf364693772bb68c"
+      ]
+    ]
+  },
+  {
+    "id": "f00b552c722b83f0",
+    "type": "switch",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Cooldown Gate",
+    "property": "fogCooldown",
+    "propertyType": "flow",
+    "rules": [
+      {
+        "t": "neq",
+        "v": "true",
+        "vt": "str"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 1850,
+    "y": 320,
+    "wires": [
+      [
+        "8c43073401686419"
+      ]
+    ]
+  },
+  {
+    "id": "e152f1dd131f1ff7",
+    "type": "delay",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Wait",
+    "pauseType": "delay",
+    "timeout": "4",
+    "timeoutUnits": "seconds",
+    "rate": "1",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "x": 2640,
+    "y": 180,
+    "wires": [
+      [
+        "56f8521301f0208e"
+      ]
+    ]
+  },
+  {
+    "id": "8c43073401686419",
+    "type": "change",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Set Fog Cooldown Active",
+    "rules": [
+      {
+        "t": "set",
+        "p": "fogCooldown",
+        "pt": "flow",
+        "to": "true",
+        "tot": "str"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 2280,
+    "y": 100,
+    "wires": [
+      [
+        "e1ccec451fe95fea"
+      ]
+    ]
+  },
+  {
+    "id": "30b08aa92820a53b",
+    "type": "delay",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Wait",
+    "pauseType": "delay",
+    "timeout": "6",
+    "timeoutUnits": "seconds",
+    "rate": "1",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "x": 2960,
+    "y": 180,
+    "wires": [
+      [
+        "7d8c295e1c0aaf90"
+      ]
+    ]
+  },
+  {
+    "id": "915ef67ad078519f",
+    "type": "change",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "Clear Fog Cooldown",
+    "rules": [
+      {
+        "t": "set",
+        "p": "fogCooldown",
+        "pt": "flow",
+        "to": "false",
+        "tot": "str"
+      }
+    ],
+    "action": "",
+    "property": "",
+    "from": "",
+    "to": "",
+    "reg": false,
+    "x": 1280,
+    "y": 1160,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "ef880160781867fa",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Turn Light Red",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [
+      "goal"
+    ],
+    "deviceId": [],
+    "entityId": [],
+    "labelId": [],
+    "data": "{\"rgb_color\":[255,10,10],\"transition\":0.15,\"brightness\":255}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "x": 1360,
+    "y": 300,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "c344baa4572d50ff",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "Turn Light White",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [
+      "goal"
+    ],
+    "deviceId": [],
+    "entityId": [],
+    "labelId": [],
+    "data": "{\"rgb_color\":[255,255,252],\"transition\":0.15,\"brightness\":255}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "x": 2680,
+    "y": 620,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "7e8db948f34f01d6",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Set Light 4 Color",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "f4263f2baa6c4771530a87f77f460080"
+    ],
+    "entityId": [],
+    "labelId": [],
+    "data": "{\"transition\":0,\"rgb_color\": $$.payload[3]}",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "output_location": "",
+    "output_location_type": "none",
+    "x": 2130,
+    "y": 860,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "551a2fe1a263d204",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Set Light 3 Color",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "4d62bb294d0ba2939cff934578fee83d"
+    ],
+    "entityId": [],
+    "labelId": [],
+    "data": "{\"transition\":0,\"rgb_color\": $$.payload[2]}",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "output_location": "",
+    "output_location_type": "none",
+    "x": 2130,
+    "y": 820,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "4d18f4538cd39582",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Set Light 2 Color",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "462090885bc09f6537d82d1817a5b93a"
+    ],
+    "entityId": [
+      "light.goal_2"
+    ],
+    "labelId": [],
+    "data": "{\"transition\":0,\"rgb_color\": $$.payload[1]}",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "output_location": "",
+    "output_location_type": "none",
+    "x": 2130,
+    "y": 780,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "ed443557bc93166e",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Set Light 1 Color",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "65297a353b9d3edfdcd26216809e8272"
+    ],
+    "entityId": [
+      "light.goal_1"
+    ],
+    "labelId": [],
+    "data": "{\"transition\":0, \"rgb_color\": $$.payload[0]}",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "output_location": "",
+    "output_location_type": "none",
+    "x": 2130,
+    "y": 740,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "aa5174407bac5d91",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Turn Light Blue",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "light.turn_on",
+    "floorId": [],
+    "areaId": [
+      "goal"
+    ],
+    "deviceId": [],
+    "entityId": [],
+    "labelId": [],
+    "data": "{\"rgb_color\":[10,10,255],\"transition\":0.15,\"brightness\":255}",
+    "dataType": "json",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": false,
+    "domain": "light",
+    "service": "turn_on",
+    "x": 1580,
+    "y": 140,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "e1ccec451fe95fea",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Machine",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "button.press",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "button.bot_21"
+    ],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "button",
+    "service": "press",
+    "x": 2450,
+    "y": 180,
+    "wires": [
+      [
+        "e152f1dd131f1ff7"
+      ]
+    ]
+  },
+  {
+    "id": "56f8521301f0208e",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Machine",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "button.press",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "button.bot_21"
+    ],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "button",
+    "service": "press",
+    "x": 2810,
+    "y": 180,
+    "wires": [
+      [
+        "30b08aa92820a53b"
+      ]
+    ]
+  },
+  {
+    "id": "7d8c295e1c0aaf90",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Fog Machine",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "button.press",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [],
+    "entityId": [
+      "button.bot_21"
+    ],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "button",
+    "service": "press",
+    "x": 3130,
+    "y": 180,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "8f5994548d3b3fa1",
+    "type": "api-current-state",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Choose Panthers Song",
+    "server": "b5775a0b.167b88",
+    "version": 3,
+    "outputs": 2,
+    "halt_if": "off",
+    "halt_if_type": "str",
+    "halt_if_compare": "is",
+    "entity_id": "binary_sensor.goal_goal_rotary_switch",
+    "state_type": "str",
+    "blockInputOverrides": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "panther_song",
+        "valueType": "str"
+      }
+    ],
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "override_topic": false,
+    "state_location": "payload",
+    "override_payload": "msg",
+    "entity_location": "data",
+    "override_data": "msg",
+    "x": 1360,
+    "y": 520,
+    "wires": [
+      [
+        "8df7718438371b96"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "8a5ff78335f24f7c",
+    "type": "api-current-state",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Choose Alternate Song",
+    "server": "b5775a0b.167b88",
+    "version": 3,
+    "outputs": 2,
+    "halt_if": "on",
+    "halt_if_type": "str",
+    "halt_if_compare": "is",
+    "entity_id": "binary_sensor.goal_goal_rotary_switch",
+    "state_type": "str",
+    "blockInputOverrides": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "alternate_song",
+        "valueType": "str"
+      }
+    ],
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "override_topic": false,
+    "state_location": "payload",
+    "override_payload": "msg",
+    "entity_location": "data",
+    "override_data": "msg",
+    "x": 1360,
+    "y": 560,
+    "wires": [
+      [
+        "8df7718438371b96"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "d7877726bdfc27d8",
+    "type": "api-current-state",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Choose Alternate Goal",
+    "server": "b5775a0b.167b88",
+    "version": 3,
+    "outputs": 2,
+    "halt_if": "on",
+    "halt_if_type": "str",
+    "halt_if_compare": "is",
+    "entity_id": "binary_sensor.goal_goal_rotary_switch",
+    "state_type": "str",
+    "blockInputOverrides": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "goal_push_alternate",
+        "valueType": "str"
+      }
+    ],
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "override_topic": false,
+    "state_location": "payload",
+    "override_payload": "msg",
+    "entity_location": "data",
+    "override_data": "msg",
+    "x": 1280,
+    "y": 140,
+    "wires": [
+      [
+        "8602aab4663165bb",
+        "aa5174407bac5d91"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "45068c1d51d8e99a",
+    "type": "api-current-state",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Choose Panthers Goal",
+    "server": "b5775a0b.167b88",
+    "version": 3,
+    "outputs": 2,
+    "halt_if": "off",
+    "halt_if_type": "str",
+    "halt_if_compare": "is",
+    "entity_id": "binary_sensor.goal_goal_rotary_switch",
+    "state_type": "str",
+    "blockInputOverrides": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "goal_push_panthers",
+        "valueType": "str"
+      }
+    ],
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "override_topic": false,
+    "state_location": "payload",
+    "override_payload": "msg",
+    "entity_location": "data",
+    "override_data": "msg",
+    "x": 1300,
+    "y": 380,
+    "wires": [
+      [
+        "8602aab4663165bb",
+        "ef880160781867fa"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "0c7d03a261641b72",
+    "type": "server-state-changed",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Goal Push",
+    "server": "b5775a0b.167b88",
+    "version": 6,
+    "outputs": 2,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "binary_sensor.goal_goal_button"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "off",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "ignorePrevStateNull": false,
+    "ignorePrevStateUnknown": false,
+    "ignorePrevStateUnavailable": false,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "goal_push",
+        "valueType": "str"
+      }
+    ],
+    "x": 620,
+    "y": 120,
+    "wires": [
+      [
+        "d7877726bdfc27d8",
+        "45068c1d51d8e99a",
+        "f00b552c722b83f0",
+        "cea2307dabb0f46b"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "daa209d5d9639831",
+    "type": "server-state-changed",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Goal Release",
+    "server": "b5775a0b.167b88",
+    "version": 6,
+    "outputs": 2,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "binary_sensor.goal_goal_button"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "on",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "ignorePrevStateNull": false,
+    "ignorePrevStateUnknown": false,
+    "ignorePrevStateUnavailable": false,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "goal_release",
+        "valueType": "str"
+      }
+    ],
+    "x": 630,
+    "y": 320,
+    "wires": [
+      [
+        "3c1ee8985055a222",
+        "c344baa4572d50ff"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "a7f67324948ba391",
+    "type": "server-state-changed",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Goal Song",
+    "server": "b5775a0b.167b88",
+    "version": 6,
+    "outputs": 2,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "binary_sensor.goal_goal_song_button"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "on",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "ignorePrevStateNull": false,
+    "ignorePrevStateUnknown": false,
+    "ignorePrevStateUnavailable": false,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "song",
+        "valueType": "str"
+      }
+    ],
+    "x": 620,
+    "y": 500,
+    "wires": [
+      [
+        "8c6811f8535caee5",
+        "8a5ff78335f24f7c",
+        "8f5994548d3b3fa1",
+        "0572c32bc193ad90"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "3974b919319c261f",
+    "type": "server-state-changed",
+    "z": "e74e2360d63fb932",
+    "g": "group_ha_inputs",
+    "name": "Stop All",
+    "server": "b5775a0b.167b88",
+    "version": 6,
+    "outputs": 1,
+    "exposeAsEntityConfig": "",
+    "entities": {
+      "entity": [
+        "binary_sensor.goal_goal_stop_button"
+      ],
+      "substring": [],
+      "regex": []
+    },
+    "outputInitially": false,
+    "stateType": "str",
+    "ifState": "",
+    "ifStateType": "str",
+    "ifStateOperator": "is",
+    "outputOnlyOnStateChange": true,
+    "for": "0",
+    "forType": "num",
+    "forUnits": "minutes",
+    "ignorePrevStateNull": false,
+    "ignorePrevStateUnknown": false,
+    "ignorePrevStateUnavailable": false,
+    "ignoreCurrentStateUnknown": false,
+    "ignoreCurrentStateUnavailable": false,
+    "outputProperties": [
+      {
+        "property": "payload",
+        "propertyType": "msg",
+        "value": "all_stop",
+        "valueType": "str"
+      }
+    ],
+    "x": 710,
+    "y": 980,
+    "wires": [
+      [
+        "bf364693772bb68c",
+        "c7772e87f978746f",
+        "915ef67ad078519f",
+        "a4a6172c938db537"
+      ]
+    ]
+  },
+  {
+    "id": "cea2307dabb0f46b",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_goal_actions",
+    "name": "Turn On Goal Device",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "homeassistant.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "8a24e2d9f5f5a2413552335e5b042b73"
+    ],
+    "entityId": [],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "homeassistant",
+    "service": "turn_on",
+    "x": 1160,
+    "y": 60,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "a4a6172c938db537",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_stop_reset",
+    "name": "Turn Off Sound Devices",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "homeassistant.turn_off",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "63be5b70130d18877a54c0ac956d2252",
+      "8a24e2d9f5f5a2413552335e5b042b73"
+    ],
+    "entityId": [],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "homeassistant",
+    "service": "turn_off",
+    "x": 1020,
+    "y": 1480,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "0572c32bc193ad90",
+    "type": "api-call-service",
+    "z": "e74e2360d63fb932",
+    "g": "group_song_cycle",
+    "name": "Turn On Song Device",
+    "server": "b5775a0b.167b88",
+    "version": 7,
+    "debugenabled": false,
+    "action": "homeassistant.turn_on",
+    "floorId": [],
+    "areaId": [],
+    "deviceId": [
+      "63be5b70130d18877a54c0ac956d2252"
+    ],
+    "entityId": [],
+    "labelId": [],
+    "data": "",
+    "dataType": "jsonata",
+    "mergeContext": "",
+    "mustacheAltTags": false,
+    "outputProperties": [],
+    "queue": "none",
+    "blockInputOverrides": true,
+    "domain": "homeassistant",
+    "service": "turn_on",
+    "x": 1400,
+    "y": 660,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "8b0c31efeee407e1",
+    "type": "http in",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP In Soundboard Command",
+    "url": "/soundboard/command",
+    "method": "post",
+    "upload": false,
+    "skipBodyParsing": false,
+    "swaggerDoc": "",
+    "x": 80,
+    "y": 680,
+    "wires": [
+      [
+        "1ac7905bc04ed3e4",
+        "789f22c1e0985a69"
+      ]
+    ]
+  },
+  {
+    "id": "789f22c1e0985a69",
+    "type": "switch",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP Command Router",
+    "property": "payload.command",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "eq",
+        "v": "goal_push_panthers",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "goal_push_alternate",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "goal_release",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "panther_song",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "alternate_song",
+        "vt": "str"
+      },
+      {
+        "t": "eq",
+        "v": "all_stop",
+        "vt": "str"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 6,
+    "x": 270,
+    "y": 540,
+    "wires": [
+      [
+        "ef880160781867fa",
+        "ca25b52e41851131",
+        "cea2307dabb0f46b",
+        "f00b552c722b83f0"
+      ],
+      [
+        "aa5174407bac5d91",
+        "1006ac13d98977a4",
+        "cea2307dabb0f46b",
+        "f00b552c722b83f0"
+      ],
+      [
+        "c344baa4572d50ff",
+        "1de0d867d41b2e66"
+      ],
+      [
+        "8c6811f8535caee5",
+        "1de0d867d41b2e66",
+        "0572c32bc193ad90"
+      ],
+      [
+        "8c6811f8535caee5",
+        "1de0d867d41b2e66",
+        "0572c32bc193ad90",
+        "a4a6172c938db537"
+      ],
+      [
+        "c344baa4572d50ff",
+        "1de0d867d41b2e66",
+        "c7772e87f978746f",
+        "915ef67ad078519f",
+        "a4a6172c938db537"
+      ]
+    ]
+  },
+  {
+    "id": "1ac7905bc04ed3e4",
+    "type": "debug",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP Debug Payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 390,
+    "y": 840,
+    "wires": []
+  },
+  {
+    "id": "1de0d867d41b2e66",
+    "type": "http response",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP 200 Response",
+    "statusCode": "200",
+    "headers": {},
+    "x": 260,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "ca25b52e41851131",
+    "type": "http response",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP Panthers Goal Response",
+    "statusCode": "200",
+    "headers": {
+      "action": "panther_goal"
+    },
+    "x": 90,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "1006ac13d98977a4",
+    "type": "http response",
+    "z": "e74e2360d63fb932",
+    "g": "group_http_api",
+    "name": "HTTP Alternate Goal Response",
+    "statusCode": "200",
+    "headers": {
+      "action": "alternate_goal"
+    },
+    "x": 50,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "75cc7ecf9bb05236",
+    "type": "websocket-client",
+    "path": "ws://192.168.99.1:8080/soundboard",
+    "tls": "",
+    "wholemsg": "false",
+    "hb": "0",
+    "subprotocol": "",
+    "headers": []
+  },
+  {
+    "id": "b5775a0b.167b88",
+    "type": "server",
+    "name": "Home Assistant",
+    "addon": false,
+    "rejectUnauthorizedCerts": false,
+    "ha_boolean": [],
+    "connectionDelay": false,
+    "cacheJson": false,
+    "heartbeat": true,
+    "heartbeatInterval": "30",
+    "statusSeparator": "",
+    "enableGlobalContextStore": false
+  },
+  {
+    "id": "bf68e0cbfef4b390",
+    "type": "global-config",
+    "env": [],
+    "modules": {
+      "node-red-contrib-home-assistant-websocket": "0.80.3"
+    }
+  },
+  {
+    "id": "group_http_api",
+    "type": "group",
+    "z": "e74e2360d63fb932",
+    "name": "HTTP API",
+    "style": {
+      "label": true,
+      "fill": "#fff7e6",
+      "stroke": "#d9a441",
+      "color": "#222222"
+    },
+    "nodes": [
+      "8b0c31efeee407e1",
+      "789f22c1e0985a69",
+      "1ac7905bc04ed3e4",
+      "1de0d867d41b2e66",
+      "ca25b52e41851131",
+      "1006ac13d98977a4"
+    ],
+    "x": 14,
+    "y": 19,
+    "w": 576,
+    "h": 891
+  },
+  {
+    "id": "group_ha_inputs",
+    "type": "group",
+    "z": "e74e2360d63fb932",
+    "name": "Home Assistant Inputs",
+    "style": {
+      "label": true,
+      "fill": "#eef5ff",
+      "stroke": "#7aa0d2",
+      "color": "#222222"
+    },
+    "nodes": [
+      "0c7d03a261641b72",
+      "daa209d5d9639831",
+      "a7f67324948ba391",
+      "3974b919319c261f",
+      "d7877726bdfc27d8",
+      "45068c1d51d8e99a",
+      "8f5994548d3b3fa1",
+      "8a5ff78335f24f7c"
+    ],
+    "x": 594,
+    "y": 39,
+    "w": 850,
+    "h": 1141
+  },
+  {
+    "id": "group_goal_actions",
+    "type": "group",
+    "z": "e74e2360d63fb932",
+    "name": "Goal Actions And Fog",
+    "style": {
+      "label": true,
+      "fill": "#fff1f0",
+      "stroke": "#d46b6b",
+      "color": "#222222"
+    },
+    "nodes": [
+      "8602aab4663165bb",
+      "ef880160781867fa",
+      "aa5174407bac5d91",
+      "cea2307dabb0f46b",
+      "f00b552c722b83f0",
+      "8c43073401686419",
+      "e1ccec451fe95fea",
+      "e152f1dd131f1ff7",
+      "56f8521301f0208e",
+      "30b08aa92820a53b",
+      "7d8c295e1c0aaf90"
+    ],
+    "x": 1468,
+    "y": 59,
+    "w": 1756,
+    "h": 301
+  },
+  {
+    "id": "group_song_cycle",
+    "type": "group",
+    "z": "e74e2360d63fb932",
+    "name": "Song And Light Cycle",
+    "style": {
+      "label": true,
+      "fill": "#f6ffed",
+      "stroke": "#85b66a",
+      "color": "#222222"
+    },
+    "nodes": [
+      "8df7718438371b96",
+      "8c6811f8535caee5",
+      "a051021c2e49db67",
+      "70eed234a7829d75",
+      "ed443557bc93166e",
+      "4d18f4538cd39582",
+      "551a2fe1a263d204",
+      "7e8db948f34f01d6",
+      "0572c32bc193ad90"
+    ],
+    "x": 1314,
+    "y": 479,
+    "w": 874,
+    "h": 411
+  },
+  {
+    "id": "group_stop_reset",
+    "type": "group",
+    "z": "e74e2360d63fb932",
+    "name": "Stop And Reset",
+    "style": {
+      "label": true,
+      "fill": "#f9f0ff",
+      "stroke": "#9b7bd2",
+      "color": "#222222"
+    },
+    "nodes": [
+      "3c1ee8985055a222",
+      "bf364693772bb68c",
+      "c7772e87f978746f",
+      "c00ae3bf16ac2f03",
+      "915ef67ad078519f",
+      "c344baa4572d50ff",
+      "a4a6172c938db537"
+    ],
+    "x": 970,
+    "y": 879,
+    "w": 1768,
+    "h": 641
+  }
+]

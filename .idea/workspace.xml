@@ -5,14 +5,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="QOL">
-      <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA.mp4" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA_HORN.wav" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/public/USA_SONG.wav" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/public/css/styles.css" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/public/js/app.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/alternateGoal.wav" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/goal.wav" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/node-red-export.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/alternateGoal.mp3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/alternateSong.mp3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/audio/audio.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/crowd.mp3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/goal.mp3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/public/song.mp3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/alternateGoal.wav" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/alternateGoal.wav" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/public/css/styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/public/js/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -103,39 +109,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Gradle.Node-Red_Soundboard [:org.example.Soundboard.main()].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Node-Red_Soundboard [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Node-Red_Soundboard [shadowJar].executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/micah/IdeaProjects/Node-Red_Soundboard/build/libs&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.39310345&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.Node-Red_Soundboard [:org.example.Soundboard.main()].executor": "Run",
+    "Gradle.Node-Red_Soundboard [build].executor": "Run",
+    "Gradle.Node-Red_Soundboard [shadowJar].executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/micah/IdeaProjects/Node-Red_Soundboard/src/main/resources/public",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.39310345",
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\libs" />
       <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main\resources\public" />
-      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\classes\java\main" />
-      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\classes\java" />
-      <recent name="C:\Program Files\Apache Software Foundation\Tomcat 10.1\webapps\Project-4\Node-Red_Soundboard\src\main\java" />
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main" />
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main\resources" />
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main\java" />
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\libs" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main" />
+      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src" />
       <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\libs" />
       <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main\resources\public\css" />
       <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\src\main\resources\public" />
-      <recent name="C:\Users\micah\IdeaProjects\Node-Red_Soundboard\build\classes\java" />
-      <recent name="C:\Program Files\Apache Software Foundation\Tomcat 10.1\webapps\Project-4\Node-Red_Soundboard\src\main" />
     </key>
   </component>
-  <component name="RunManager" selected="Gradle.Node-Red_Soundboard [shadowJar]">
+  <component name="RunManager" selected="Application.Soundboard">
     <configuration name="Soundboard (1)" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="org.example.Soundboard" />
       <extension name="coverage">
@@ -229,8 +235,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Gradle.Node-Red_Soundboard [shadowJar]" />
         <item itemvalue="Gradle.Node-Red_Soundboard [build]" />
+        <item itemvalue="Gradle.Node-Red_Soundboard [shadowJar]" />
         <item itemvalue="Application.Soundboard (1)" />
         <item itemvalue="Application.Soundboard" />
         <item itemvalue="Gradle.Node-Red_Soundboard [assemble]" />

@@ -88,7 +88,7 @@ public class Soundboard {
         endpoints.add(Soundboard.ClientEndpoint.class);  // Register the client WebSocket endpoint
 
         // Start the WebSocket server with both soundboard and client endpoints
-        Server server = new Server("localhost", 8080, "/", null, endpoints);
+        Server server = new Server("0.0.0.0", 8080, "/", null, endpoints);
 
 
         if (enableWeb) {
@@ -297,25 +297,32 @@ public class Soundboard {
             case "goal_push_panthers":
                 if (!continuousClipPlaying && (songClip == null || !songClip.isRunning())) {
                     playContinuousClip();
+                    broadcastClientEvent("play_crowd_audio");
                 }
                 playClip(goalClip);
+                broadcastClientEvent("play_panthers_goal");
                 broadcastPanthersGoal();
                 break;
             case "goal_release":
                 fadeOutSound(goalClip);
                 fadeOutSound(alternateGoalClip);
+                broadcastClientEvent("fade_goal_audio");
                 break;
             case "panther_song":
                 playClip(songClip);
+                broadcastClientEvent("play_panthers_song");
                 break;
             case "alternate_song":
                 playClip(alternateSongClip);
+                broadcastClientEvent("play_alternate_song");
                 break;
             case "goal_push_alternate":
                 if (!continuousClipPlaying && (alternateSongClip == null || !alternateSongClip.isRunning())) {
                     playContinuousClip();
+                    broadcastClientEvent("play_crowd_audio");
                 }
                 playClip(alternateGoalClip);
+                broadcastClientEvent("play_lightning_goal");
                 broadcastLightningGoal();
 
                 break;
@@ -447,6 +454,9 @@ public class Soundboard {
         @OnMessage
         public void onClientMessage(String message, Session session) {
             System.out.println("Received from client: " + message);
+            if (message != null && message.startsWith("relay:")) {
+                broadcastClientEvent(message);
+            }
         }
     }
 
@@ -474,43 +484,26 @@ public class Soundboard {
         }
     }
 
-    private static void broadcastPanthersGoal() {
-        String testMessage = "spressed";
-
-        // Broadcast to client (browser) sessions
+    private static void broadcastClientEvent(String message) {
         for (Session session : clientSessions) {
             try {
-                session.getBasicRemote().sendText(testMessage);
+                session.getBasicRemote().sendText(message);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+    }
+
+    private static void broadcastPanthersGoal() {
+        broadcastClientEvent("spressed");
     }
 
     private static void broadcastLightningGoal() {
-        String testMessage = "lpressed";
-
-        // Broadcast to client (browser) sessions
-        for (Session session : clientSessions) {
-            try {
-                session.getBasicRemote().sendText(testMessage);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        broadcastClientEvent("lpressed");
     }
 
     private static void stopVideo() {
-        String testMessage = "all_stop";
-
-        // Broadcast to client (browser) sessions
-        for (Session session : clientSessions) {
-            try {
-                session.getBasicRemote().sendText(testMessage);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        broadcastClientEvent("all_stop");
     }
 
     public static void convertSvgToPng(String svgUrl, OutputStream outputStream) throws IOException, TranscoderException {
