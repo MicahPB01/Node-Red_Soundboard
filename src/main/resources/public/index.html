@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preload" href="/panthers_goal.mp4" as="video" type="video/mp4">
+    <link rel="preload" href="/lightning_goal.mp4" as="video" type="video/mp4">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hockey Scoreboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/app.js" defer></script>
+</head>
+<body>
+<div id="background">
+    <div id="left-half" class="half"></div>
+    <div id="blend-middle"></div>
+    <div id="right-half" class="half"></div>
+</div>
+
+<main class="app-shell">
+    <section id="scoreboard" class="scoreboard-shell">
+        <header class="top-bar">
+            <div class="sync-group">
+                <button type="button" id="settings-button" class="ghost-button">Control Panel</button>
+                <div class="sync-pills">
+                    <span id="sync-state" class="pill">Idle</span>
+                    <span id="current-delay" class="pill">Delay 0.0s</span>
+                    <span id="poll-interval-pill" class="pill">Refresh 5.0s</span>
+                </div>
+            </div>
+            <div class="meta-group">
+                <span id="game-title" class="meta-text">No game loaded</span>
+                <span id="last-updated" class="meta-text">Waiting for first sync</span>
+            </div>
+        </header>
+
+        <div class="scoreboard-grid">
+            <section id="home-panel" class="team-panel">
+                <div class="team-header">
+                    <span id="home-team-name" class="team-name">Home</span>
+                    <span id="home-record" class="team-subtext">Ready to sync</span>
+                </div>
+                <img src="/Panthers.png" width="325" id="home-image" class="team-logo" alt="Home Logo">
+                <div id="home-score" class="team-score">0</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Shots</span>
+                        <span id="homeSOG" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Hits</span>
+                        <span id="home-hits" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">PIM</span>
+                        <span id="home-pim" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Power Play</span>
+                        <span id="home-ppg" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Faceoff %</span>
+                        <span id="home-fopct" class="stat-value">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="center-panel">
+                <div class="clock-card">
+                    <div id="game-state" class="clock-kicker">Waiting for game</div>
+                    <div id="period-time" class="clock-main">--:--</div>
+                    <div id="period-label" class="clock-subtext">Period -</div>
+                </div>
+                <div class="sync-card">
+                    <div class="sync-card-header">
+                        <span class="sync-card-title">Live Sync</span>
+                        <span id="event-lock" class="sync-card-value">No hold</span>
+                    </div>
+                    <div class="sync-card-row">
+                        <span>Game ID</span>
+                        <strong id="game-id-display">-</strong>
+                    </div>
+                    <div class="sync-card-row">
+                        <span>Applied delay</span>
+                        <strong id="delay-display">0 ms</strong>
+                    </div>
+                    <div class="sync-card-row">
+                        <span>Clock source</span>
+                        <strong id="clock-source">Landing</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section id="away-panel" class="team-panel">
+                <div class="team-header">
+                    <span id="away-team-name" class="team-name">Away</span>
+                    <span id="away-record" class="team-subtext">Ready to sync</span>
+                </div>
+                <img src="/Lightning.png" width="325" id="away-image" class="team-logo" alt="Away Logo">
+                <div id="away-score" class="team-score">0</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Shots</span>
+                        <span id="awaySOG" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Hits</span>
+                        <span id="away-hits" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">PIM</span>
+                        <span id="away-pim" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Power Play</span>
+                        <span id="away-ppg" class="stat-value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Faceoff %</span>
+                        <span id="away-fopct" class="stat-value">-</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <aside id="settings" class="settings-panel" aria-hidden="true">
+        <div class="settings-header">
+            <div>
+                <h1>Game Control Panel</h1>
+                <p>Paste a game ID or an NHL game URL, then tune the delay until the board matches the live arena feed.</p>
+            </div>
+            <button type="button" id="close-button" class="ghost-button">Close</button>
+        </div>
+
+        <div class="settings-grid">
+            <label class="field">
+                <span>Game ID or NHL URL</span>
+                <input type="text" id="game-id-input" placeholder="Example: 2024020412 or https://www.nhl.com/gamecenter/..." value="">
+            </label>
+
+            <label class="field">
+                <span>Delay (seconds)</span>
+                <input type="number" id="gamedelay" min="0" step="0.5" placeholder="0" value="0">
+            </label>
+
+            <label class="field">
+                <span>Refresh every (seconds)</span>
+                <input type="number" id="refresh-interval" min="2" step="1" placeholder="5" value="5">
+            </label>
+        </div>
+
+        <div class="quick-controls">
+            <span class="quick-controls-label">Quick delay nudges</span>
+            <button type="button" class="nudge-button" data-adjust-seconds="-5">-5s</button>
+            <button type="button" class="nudge-button" data-adjust-seconds="-1">-1s</button>
+            <button type="button" class="nudge-button" data-adjust-seconds="1">+1s</button>
+            <button type="button" class="nudge-button" data-adjust-seconds="5">+5s</button>
+        </div>
+
+        <div class="settings-actions">
+            <button type="button" id="update-button" class="primary-button">Start Sync</button>
+            <button type="button" id="refresh-now-button" class="ghost-button">Refresh Now</button>
+        </div>
+
+        <div class="settings-hint">
+            Tip: if the scoreboard is ahead of the TV stream, increase the delay. If it feels behind, lower it.
+        </div>
+    </aside>
+
+    <div id="play-by-play" class="play-strip">
+        <div id="headshots-container" class="headshots-row"></div>
+        <div class="play-copy">
+            <span class="play-label">Latest event</span>
+            <span id="play-description">Load a game to begin play-by-play tracking.</span>
+        </div>
+    </div>
+</main>
+
+<div id="animation">GOAL!!!</div>
+
+<video id="panthers-video" autoplay muted loop playsinline preload="auto">
+    <source src="/panthers_goal.mp4" type="video/mp4">
+</video>
+<video id="lightning-video" autoplay muted loop playsinline preload="auto">
+    <source src="/lightning_goal.mp4" type="video/mp4">
+</video>
+</body>
+</html>
