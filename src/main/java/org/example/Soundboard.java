@@ -1,5 +1,7 @@
 package org.example;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import javax.servlet.ServletOutputStream;
 import javax.sound.sampled.*;
 import javax.websocket.*;
@@ -9,11 +11,18 @@ import spark.Spark;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.*;
 import org.apache.batik.transcoder.TranscoderException;
@@ -38,6 +47,15 @@ public class Soundboard {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static boolean continuousClipPlaying = false;
     private static final ConcurrentHashMap<Clip, Future<?>> fadeOutTasks = new ConcurrentHashMap<>();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String AUDIO_DIR_ENV = "SOUNDBOARD_AUDIO_DIR";
+    private static final String SOUND_CONFIG_ENV = "SOUNDBOARD_SOUND_CONFIG";
+    private static final Path AUDIO_DIRECTORY = Paths.get(System.getenv().getOrDefault(AUDIO_DIR_ENV, "audio-library")).toAbsolutePath().normalize();
+    private static final Path SOUND_CONFIG_PATH = Paths.get(System.getenv().getOrDefault(SOUND_CONFIG_ENV, "sound-selection.json")).toAbsolutePath().normalize();
+    private static final Set<String> SELECTABLE_EXTENSIONS = new LinkedHashSet<>(Arrays.asList(".wav"));
+    private static final List<String> REMOTE_PREFERRED_EXTENSIONS = Arrays.asList(".mp3");
+    private static final Map<String, String> DEFAULT_SELECTIONS = defaultSelections();
+    private static volatile SoundSelection soundSelection = loadSelection();
     private static int homeScore = 0;
     private static int awayScore = 0;
     private static Set<Session> soundboardSessions = new CopyOnWriteArraySet<>();  // Sessions for Postman or external tool
@@ -45,32 +63,173 @@ public class Soundboard {
     private static boolean enableWeb = true;
 
     static {
-        try { goalClip            = loadClip("goal.wav");          }
-        catch(Exception e) { e.printStackTrace(); }
+        try {
+            reloadConfiguredSounds();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-        try { alternateGoalClip   = loadClip("alternateGoal.wav");     }
-        catch(Exception e) { e.printStackTrace(); }
+    private static Map<String, String> defaultSelections() {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("homeGoal", "goal.wav");
+        defaults.put("homeSong", "song.wav");
+        defaults.put("awayGoal", "alternateGoal.wav");
+        defaults.put("awaySong", "alternateSong.wav");
+        defaults.put("crowd", "crowd.wav");
+        return defaults;
+    }
 
-        try { songClip            = loadClip("song.wav");          }
-        catch(Exception e) { e.printStackTrace(); }
+    private static synchronized void reloadConfiguredSounds() throws IOException, UnsupportedAudioFileException, LineUnavailableException {
+        SoundSelection selection = soundSelection.withDefaults();
+        goalClip = replaceClip(goalClip, loadClip(selection.homeGoal));
+        alternateGoalClip = replaceClip(alternateGoalClip, loadClip(selection.awayGoal));
+        songClip = replaceClip(songClip, loadClip(selection.homeSong));
+        alternateSongClip = replaceClip(alternateSongClip, loadClip(selection.awaySong));
+        continuousClip = replaceClip(continuousClip, loadClip(selection.crowd));
+    }
 
-        try { alternateSongClip   = loadClip("alternateSong.wav");      }
-        catch(Exception e) { e.printStackTrace(); }
-
-        try { continuousClip      = loadClip("crowd.wav");         }
-        catch(Exception e) { e.printStackTrace(); }
+    private static Clip replaceClip(Clip existingClip, Clip newClip) {
+        if (existingClip != null) {
+            try {
+                existingClip.stop();
+                existingClip.close();
+            } catch (Exception ignored) {
+            }
+        }
+        return newClip;
     }
 
     private static Clip loadClip(String fileName) throws IOException, UnsupportedAudioFileException, LineUnavailableException {
-        InputStream resourceStream = Soundboard.class.getResourceAsStream("/" + fileName);
-        if (resourceStream == null) {
-            throw new FileNotFoundException("Missing audio resource in JAR: " + fileName);
+        Path audioPath = AUDIO_DIRECTORY.resolve(fileName).normalize();
+        AudioInputStream audioInputStream;
+
+        if (Files.exists(audioPath)) {
+            audioInputStream = AudioSystem.getAudioInputStream(audioPath.toFile());
+        } else {
+            InputStream resourceStream = Soundboard.class.getResourceAsStream("/" + fileName);
+            if (resourceStream == null) {
+                throw new FileNotFoundException("Missing audio resource: " + fileName);
+            }
+            audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(resourceStream));
         }
 
-        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(resourceStream));
         Clip clip = AudioSystem.getClip();
         clip.open(audioInputStream);
         return clip;
+    }
+
+    private static SoundSelection loadSelection() {
+        if (!Files.exists(SOUND_CONFIG_PATH)) {
+            return new SoundSelection();
+        }
+
+        try (Reader reader = Files.newBufferedReader(SOUND_CONFIG_PATH)) {
+            SoundSelection loaded = GSON.fromJson(reader, SoundSelection.class);
+            return loaded == null ? new SoundSelection() : loaded.withDefaults();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new SoundSelection();
+        }
+    }
+
+    private static synchronized void saveSelection(SoundSelection selection) throws IOException {
+        soundSelection = selection.withDefaults();
+        Path parent = SOUND_CONFIG_PATH.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        try (Writer writer = Files.newBufferedWriter(SOUND_CONFIG_PATH)) {
+            GSON.toJson(soundSelection, writer);
+        }
+    }
+
+    private static List<String> listSelectableFiles() throws IOException {
+        LinkedHashSet<String> fileNames = new LinkedHashSet<>(DEFAULT_SELECTIONS.values());
+        if (Files.isDirectory(AUDIO_DIRECTORY)) {
+            try (var paths = Files.list(AUDIO_DIRECTORY)) {
+                paths.filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .filter(Soundboard::isSelectableFile)
+                        .sorted(String::compareToIgnoreCase)
+                        .forEach(fileNames::add);
+            }
+        }
+        return new ArrayList<>(fileNames);
+    }
+
+    private static boolean isSelectableFile(String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        return SELECTABLE_EXTENSIONS.stream().anyMatch(lower::endsWith);
+    }
+
+    private static Path resolveRemoteAudioPath(String role) {
+        String selectedFile = soundSelection.withDefaults().fileForRole(role);
+        if (selectedFile == null || selectedFile.isBlank()) {
+            return null;
+        }
+
+        String baseName = stripExtension(selectedFile);
+        for (String ext : REMOTE_PREFERRED_EXTENSIONS) {
+            Path candidate = AUDIO_DIRECTORY.resolve(baseName + ext).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static InputStream resolveBundledRemoteAudio(String role) {
+        String selectedFile = soundSelection.withDefaults().fileForRole(role);
+        if (selectedFile == null || selectedFile.isBlank()) {
+            return null;
+        }
+
+        String baseName = stripExtension(selectedFile);
+        for (String ext : REMOTE_PREFERRED_EXTENSIONS) {
+            InputStream stream = Soundboard.class.getResourceAsStream("/public/" + baseName + ext);
+            if (stream != null) {
+                return stream;
+            }
+        }
+        return null;
+    }
+
+    private static String stripExtension(String fileName) {
+        int dotIndex = fileName.lastIndexOf('.');
+        return dotIndex >= 0 ? fileName.substring(0, dotIndex) : fileName;
+    }
+
+    private static String contentTypeFor(String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".mp3")) return "audio/mpeg";
+        if (lower.endsWith(".m4a")) return "audio/mp4";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".wav")) return "audio/wav";
+        return "application/octet-stream";
+    }
+
+    private static void writeStreamToResponse(InputStream inputStream, OutputStream outputStream) throws IOException {
+        byte[] buffer = new byte[4096];
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, bytesRead);
+        }
+        outputStream.flush();
+    }
+
+    private static void validateSelection(SoundSelection selection, List<String> selectableFiles) {
+        Set<String> allowed = new LinkedHashSet<>(selectableFiles);
+        for (Map.Entry<String, String> entry : selection.asMap().entrySet()) {
+            String value = entry.getValue();
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("Missing sound file for " + entry.getKey());
+            }
+            if (!allowed.contains(value)) {
+                throw new IllegalArgumentException("Unknown sound file for " + entry.getKey() + ": " + value);
+            }
+        }
     }
 
     private static void setVolumeToMax(Clip clip) {
@@ -100,6 +259,80 @@ public class Soundboard {
                     e.printStackTrace();
                     res.status(500);
                     return "Error loading page";
+                }
+            });
+
+            Spark.get("/api/audio/files", (req, res) -> {
+                res.type("application/json");
+                try {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("files", listSelectableFiles());
+                    payload.put("selection", soundSelection.withDefaults().asMap());
+                    payload.put("audioDirectory", AUDIO_DIRECTORY.toString());
+                    return GSON.toJson(payload);
+                } catch (IOException e) {
+                    res.status(500);
+                    return GSON.toJson(Map.of("error", "Could not list audio files"));
+                }
+            });
+
+            Spark.get("/api/audio/selection", (req, res) -> {
+                res.type("application/json");
+                return GSON.toJson(soundSelection.withDefaults().asMap());
+            });
+
+            Spark.post("/api/audio/selection", (req, res) -> {
+                res.type("application/json");
+                try {
+                    SoundSelection requested = GSON.fromJson(req.body(), SoundSelection.class);
+                    if (requested == null) {
+                        throw new IllegalArgumentException("Missing selection payload");
+                    }
+
+                    SoundSelection normalized = requested.withDefaults();
+                    validateSelection(normalized, listSelectableFiles());
+                    saveSelection(normalized);
+                    reloadConfiguredSounds();
+                    return GSON.toJson(Map.of(
+                            "ok", true,
+                            "selection", soundSelection.withDefaults().asMap()
+                    ));
+                } catch (IllegalArgumentException e) {
+                    res.status(400);
+                    return GSON.toJson(Map.of("error", e.getMessage()));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    res.status(500);
+                    return GSON.toJson(Map.of("error", "Could not save audio selection"));
+                }
+            });
+
+            Spark.get("/audio/remote/:role", (req, res) -> {
+                String role = req.params("role");
+                if (!soundSelection.withDefaults().asMap().containsKey(role)) {
+                    res.status(404);
+                    return "Unknown audio role";
+                }
+
+                Path filePath = resolveRemoteAudioPath(role);
+                if (filePath != null) {
+                    res.type(contentTypeFor(filePath.getFileName().toString()));
+                    try (InputStream inputStream = Files.newInputStream(filePath)) {
+                        writeStreamToResponse(inputStream, res.raw().getOutputStream());
+                    }
+                    return res.raw();
+                }
+
+                try (InputStream inputStream = resolveBundledRemoteAudio(role)) {
+                    if (inputStream == null) {
+                        res.status(404);
+                        return "Audio file not found";
+                    }
+
+                    String selectedFile = soundSelection.withDefaults().fileForRole(role);
+                    res.type(contentTypeFor(selectedFile));
+                    writeStreamToResponse(inputStream, res.raw().getOutputStream());
+                    return res.raw();
                 }
             });
 
@@ -521,6 +754,37 @@ public class Soundboard {
 
         // Close the input stream
         svgInputStream.close();
+    }
+
+    private static class SoundSelection {
+        String homeGoal = DEFAULT_SELECTIONS.get("homeGoal");
+        String homeSong = DEFAULT_SELECTIONS.get("homeSong");
+        String awayGoal = DEFAULT_SELECTIONS.get("awayGoal");
+        String awaySong = DEFAULT_SELECTIONS.get("awaySong");
+        String crowd = DEFAULT_SELECTIONS.get("crowd");
+
+        SoundSelection withDefaults() {
+            if (homeGoal == null || homeGoal.isBlank()) homeGoal = DEFAULT_SELECTIONS.get("homeGoal");
+            if (homeSong == null || homeSong.isBlank()) homeSong = DEFAULT_SELECTIONS.get("homeSong");
+            if (awayGoal == null || awayGoal.isBlank()) awayGoal = DEFAULT_SELECTIONS.get("awayGoal");
+            if (awaySong == null || awaySong.isBlank()) awaySong = DEFAULT_SELECTIONS.get("awaySong");
+            if (crowd == null || crowd.isBlank()) crowd = DEFAULT_SELECTIONS.get("crowd");
+            return this;
+        }
+
+        Map<String, String> asMap() {
+            Map<String, String> map = new LinkedHashMap<>();
+            map.put("homeGoal", homeGoal);
+            map.put("homeSong", homeSong);
+            map.put("awayGoal", awayGoal);
+            map.put("awaySong", awaySong);
+            map.put("crowd", crowd);
+            return map;
+        }
+
+        String fileForRole(String role) {
+            return asMap().get(role);
+        }
     }
 
 

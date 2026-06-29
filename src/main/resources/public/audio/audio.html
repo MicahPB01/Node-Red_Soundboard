@@ -178,6 +178,40 @@
           touch-action: pan-x;
         }
 
+        .selection-grid {
+          margin-top: 18px;
+          display: grid;
+          gap: 10px;
+        }
+
+        .selection-card {
+          padding: 12px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .selection-card h3 {
+          margin: 0 0 10px 0;
+          font-size: 14px;
+          color: #f5f7fb;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .selection-actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-top: 10px;
+        }
+
+        .selection-note {
+          font-size: 12px;
+          color: #9eb5cc;
+          line-height: 1.4;
+        }
+
         .section-title {
           margin: 22px 0 10px;
           font-size: 15px;
@@ -249,11 +283,43 @@
     <button id="enable-audio">Enable Remote Audio</button>
 
     <div class="tracks">
-        <div class="track"><strong>Panthers goal:</strong> prefers `goal.mp3`, falls back to `goal.wav`</div>
-        <div class="track"><strong>Lightning goal:</strong> prefers `alternateGoal.mp3`, falls back to `alternateGoal.wav`</div>
-        <div class="track"><strong>Crowd bed:</strong> prefers `crowd.mp3`, falls back to `crowd.wav`</div>
-        <div class="track"><strong>Panthers song:</strong> prefers `song.mp3`, falls back to `song.wav`</div>
-        <div class="track"><strong>Alternate song:</strong> prefers `alternateSong.mp3`, falls back to `alternateSong.wav`</div>
+        <div class="track"><strong>Panthers goal:</strong> uses the active home goal MP3 from the server</div>
+        <div class="track"><strong>Lightning goal:</strong> uses the active away goal MP3 from the server</div>
+        <div class="track"><strong>Crowd bed:</strong> uses the active crowd MP3 from the server</div>
+        <div class="track"><strong>Panthers song:</strong> uses the active home song MP3 from the server</div>
+        <div class="track"><strong>Alternate song:</strong> uses the active away song MP3 from the server</div>
+    </div>
+
+    <div class="section-title">Active Sound Files</div>
+    <div class="selection-grid">
+        <div class="selection-card">
+            <h3>Home Team</h3>
+            <div class="field">
+                <label for="home-goal-file">Goal horn file</label>
+                <select id="home-goal-file"></select>
+            </div>
+            <div class="field">
+                <label for="home-song-file">Song file</label>
+                <select id="home-song-file"></select>
+            </div>
+        </div>
+        <div class="selection-card">
+            <h3>Away Team</h3>
+            <div class="field">
+                <label for="away-goal-file">Goal horn file</label>
+                <select id="away-goal-file"></select>
+            </div>
+            <div class="field">
+                <label for="away-song-file">Song file</label>
+                <select id="away-song-file"></select>
+            </div>
+        </div>
+        <div class="selection-card">
+            <div class="selection-actions">
+                <button id="save-sound-selection" type="button">Save Active Sounds</button>
+            </div>
+            <div id="sound-selection-status" class="selection-note">Pick the active WAV files for local playback. Browsers will use matching MP3 files with the same base name.</div>
+        </div>
     </div>
 
     <div class="section-title">Remote Mix</div>
@@ -333,6 +399,12 @@
     const playbackStatusEl = document.getElementById('playback-status');
     const activeStatusEl = document.getElementById('active-status');
     const enableAudioButton = document.getElementById('enable-audio');
+    const homeGoalFileInput = document.getElementById('home-goal-file');
+    const homeSongFileInput = document.getElementById('home-song-file');
+    const awayGoalFileInput = document.getElementById('away-goal-file');
+    const awaySongFileInput = document.getElementById('away-song-file');
+    const saveSoundSelectionButton = document.getElementById('save-sound-selection');
+    const soundSelectionStatusEl = document.getElementById('sound-selection-status');
     const controllerModeInput = document.getElementById('controller-mode');
     const nodeRedHostInput = document.getElementById('node-red-host');
     const nodeRedPortInput = document.getElementById('node-red-port');
@@ -344,13 +416,18 @@
     const relayClientId = window.crypto?.randomUUID ? window.crypto.randomUUID() : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const audioTracks = {
-      panthersGoal: { label: 'Panthers goal horn', baseName: 'goal' },
-      lightningGoal: { label: 'Lightning goal horn', baseName: 'alternateGoal' },
-      crowd: { label: 'Crowd bed', baseName: 'crowd' },
-      panthersSong: { label: 'Panthers song', baseName: 'song' },
-      alternateSong: { label: 'Alternate song', baseName: 'alternateSong' }
+      panthersGoal: { label: 'Panthers goal horn', src: '/audio/remote/homeGoal' },
+      lightningGoal: { label: 'Lightning goal horn', src: '/audio/remote/awayGoal' },
+      crowd: { label: 'Crowd bed', src: '/audio/remote/crowd' },
+      panthersSong: { label: 'Panthers song', src: '/audio/remote/homeSong' },
+      alternateSong: { label: 'Alternate song', src: '/audio/remote/awaySong' }
     };
-    const REMOTE_AUDIO_EXTENSIONS = ['mp3', 'm4a', 'ogg', 'wav'];
+    const selectionInputs = {
+      homeGoal: homeGoalFileInput,
+      homeSong: homeSongFileInput,
+      awayGoal: awayGoalFileInput,
+      awaySong: awaySongFileInput
+    };
     const mixInputs = {
       panthersGoal: document.getElementById('mix-panthersGoal'),
       lightningGoal: document.getElementById('mix-lightningGoal'),
@@ -371,6 +448,7 @@
     const activeTracks = new Set();
     const bufferCache = new Map();
     const activeNodes = new Map();
+    let availableSoundFiles = [];
 
     function setConnectionStatus(text, connected) {
       connectionStatusEl.textContent = text;
@@ -412,6 +490,36 @@
         host: nodeRedHostInput.value.trim(),
         port: nodeRedPortInput.value.trim()
       }));
+    }
+
+    function setSoundSelectionStatus(text) {
+      soundSelectionStatusEl.textContent = text;
+    }
+
+    function populateSelectionInput(selectEl, selectedValue) {
+      const options = availableSoundFiles
+        .map((fileName) => `<option value="${fileName}">${fileName}</option>`)
+        .join('');
+      selectEl.innerHTML = options;
+      if (selectedValue && availableSoundFiles.includes(selectedValue)) {
+        selectEl.value = selectedValue;
+      }
+    }
+
+    function applySelectionToInputs(selection) {
+      Object.keys(selectionInputs).forEach((role) => {
+        populateSelectionInput(selectionInputs[role], selection[role]);
+      });
+    }
+
+    function clearTrackCacheForSelectionChange() {
+      ['panthersGoal', 'panthersSong', 'lightningGoal', 'alternateSong'].forEach((key) => {
+        bufferCache.delete(key);
+        const track = audioTracks[key];
+        if (track) {
+          delete track.resolvedSrc;
+        }
+      });
     }
 
     function getTrackVolume(key) {
@@ -538,29 +646,21 @@
       return audioContext;
     }
 
-    function getAudioSourceCandidates(track) {
-      return REMOTE_AUDIO_EXTENSIONS.map((ext) => `/${track.baseName}.${ext}`);
-    }
-
     async function fetchTrackArrayBuffer(track) {
-      const candidates = getAudioSourceCandidates(track);
-
-      for (const src of candidates) {
-        try {
-          const response = await fetch(src, { cache: 'force-cache' });
-          if (!response.ok) {
-            continue;
-          }
-
-          const arrayBuffer = await response.arrayBuffer();
-          track.resolvedSrc = src;
-          return arrayBuffer;
-        } catch (err) {
-          console.debug(`Remote audio fetch failed for ${src}:`, err);
+      try {
+        const response = await fetch(track.src, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+
+        const arrayBuffer = await response.arrayBuffer();
+        track.resolvedSrc = track.src;
+        return arrayBuffer;
+      } catch (err) {
+        console.debug(`Remote audio fetch failed for ${track.src}:`, err);
       }
 
-      throw new Error(`Could not load any audio file for ${track.baseName}`);
+      throw new Error(`Could not load active audio for ${track.label}`);
     }
 
     async function fetchAndDecodeTrack(key) {
@@ -684,6 +784,59 @@
       setPlaybackStatus('Playback: Fading out');
     }
 
+    async function loadSoundSelectionConfig() {
+      try {
+        const response = await fetch('/api/audio/files', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        availableSoundFiles = Array.isArray(data.files) ? data.files : [];
+        applySelectionToInputs(data.selection || {});
+        setSoundSelectionStatus(`Loaded ${availableSoundFiles.length} selectable files from the server.`);
+      } catch (err) {
+        console.error('Could not load sound selections:', err);
+        setSoundSelectionStatus(`Could not load sound file list (${err.message || 'request error'})`);
+      }
+    }
+
+    async function saveSoundSelectionConfig() {
+      const payload = {
+        homeGoal: homeGoalFileInput.value,
+        homeSong: homeSongFileInput.value,
+        awayGoal: awayGoalFileInput.value,
+        awaySong: awaySongFileInput.value
+      };
+
+      try {
+        saveSoundSelectionButton.disabled = true;
+        setSoundSelectionStatus('Saving active sound files...');
+
+        const response = await fetch('/api/audio/selection', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        applySelectionToInputs(data.selection || payload);
+        clearTrackCacheForSelectionChange();
+        setSoundSelectionStatus('Active sound files saved. The next trigger will use the new files.');
+      } catch (err) {
+        console.error('Could not save sound selections:', err);
+        setSoundSelectionStatus(`Could not save active sound files (${err.message || 'request error'})`);
+      } finally {
+        saveSoundSelectionButton.disabled = false;
+      }
+    }
+
     enableAudioButton.addEventListener('click', async () => {
       try {
         await enableAudio();
@@ -695,6 +848,10 @@
         console.error('Could not enable audio:', err);
         setPlaybackStatus(`Playback: Enable failed (${err.message || 'unknown error'})`);
       }
+    });
+
+    saveSoundSelectionButton.addEventListener('click', () => {
+      void saveSoundSelectionConfig();
     });
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -908,6 +1065,7 @@
     loadControllerSettings();
     loadMixSettings();
     refreshControllerStatus();
+    void loadSoundSelectionConfig();
 
     sock.onmessage = async (event) => {
       const msg = event.data;

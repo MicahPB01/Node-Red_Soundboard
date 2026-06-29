@@ -6,6 +6,18 @@
   <component name="ChangeListManager">
     <list default="true" id="072def4b-7c3e-4548-aa7e-d4202245e47c" name="Changes" comment="BIG BIG BIG BIG">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/Soundboard.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/alternateGoal.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/alternateSong.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/goal.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/alternateGoal.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/alternateSong.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/audio/audio.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/public/audio/audio.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/crowd.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/goal.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/public/song.mp3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/song.wav" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

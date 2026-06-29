@@ -21,6 +21,7 @@ dependencies {
     implementation 'com.googlecode.soundlibs:vorbisspi:1.0.3.3'
     implementation group: 'com.sparkjava', name: 'spark-core', version: '2.9.4'
     implementation 'org.apache.xmlgraphics:batik-all:1.18'
+    implementation 'com.google.code.gson:gson:2.11.0'
 }
 
 sourceSets {
